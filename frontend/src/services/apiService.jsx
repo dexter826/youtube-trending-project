@@ -131,20 +131,6 @@ const apiService = {
     return response.data;
   },
 
-  // Quick prediction with minimal data
-  async quickPredictTrending(title, views = 1000, likes = 100, comments = 10, categoryId = 28) {
-    const response = await api.post('/ml/quick-predict', null, {
-      params: {
-        title,
-        views,
-        likes,
-        comments,
-        category_id: categoryId
-      }
-    });
-    return response.data;
-  },
-
   // Batch prediction for multiple videos
   async predictBatch(videosData, modelName = 'random_forest') {
     const response = await api.post('/ml/predict-batch', {

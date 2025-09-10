@@ -580,53 +580,6 @@ async def ml_health_check():
             "models_available": 0
         }
 
-@app.post("/ml/quick-predict")
-async def quick_predict_trending(
-    title: str,
-    views: int = 1000,
-    likes: int = 100,
-    comments: int = 10,
-    category_id: int = 28
-):
-    """Quick prediction endpoint with minimal required fields"""
-    try:
-        ml_service = get_ml_service()
-        
-        # Create simple video data
-        video_data = {
-            'title': title,
-            'views': views,
-            'likes': likes,
-            'dislikes': max(1, views // 100),  # Estimate dislikes
-            'comment_count': comments,
-            'category_id': category_id,
-            'publish_time': datetime.now().isoformat(),
-            'tags': '',
-            'comments_disabled': False,
-            'ratings_disabled': False
-        }
-        
-        result = ml_service.predict_trending(video_data, 'random_forest')
-        
-        if not result or not result.get('success', False):
-            raise HTTPException(status_code=500, detail="Prediction failed")
-        
-        # Simplified response
-        prediction = result['prediction']
-        return {
-            "title": title,
-            "is_trending": prediction['is_trending'],
-            "trending_probability": f"{prediction['trending_probability']:.1%}",
-            "confidence": prediction['confidence_level'],
-            "recommendation": result['recommendation']['trending_probability_assessment'],
-            "advice": result['recommendation']['recommendations'][:2]  # Top 2 recommendations
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Quick prediction failed: {str(e)}")
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

@@ -28,7 +28,6 @@ const MLPredictor = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modelInfo, setModelInfo] = useState(null);
-  const [quickMode, setQuickMode] = useState(true);
   const [categories, setCategories] = useState({});
   const [loadingCategories, setLoadingCategories] = useState(true);
 
@@ -82,34 +81,7 @@ const MLPredictor = () => {
     }));
   };
 
-  const handleQuickPredict = async () => {
-    if (!videoData.title.trim()) {
-      setError("Vui lòng nhập tiêu đề video");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setPrediction(null);
-
-    try {
-      const result = await apiService.quickPredictTrending(
-        videoData.title,
-        videoData.views,
-        videoData.likes,
-        videoData.comment_count,
-        videoData.category_id
-      );
-
-      setPrediction(result);
-    } catch (err) {
-      setError(`Dự đoán thất bại: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFullPredict = async () => {
+  const handlePredict = async () => {
     if (!videoData.title.trim()) {
       setError("Vui lòng nhập tiêu đề video");
       return;
@@ -154,33 +126,9 @@ const MLPredictor = () => {
             🤖 AI Trending Predictor
           </h3>
           <p className="text-sm text-gray-600">
-            Dự đoán khả năng video sẽ trending bằng Machine Learning
+            Dự đoán chi tiết khả năng video sẽ trending bằng Machine Learning
           </p>
         </div>
-      </div>
-
-      {/* Mode Toggle */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setQuickMode(true)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            quickMode
-              ? "bg-purple-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          ⚡ Dự đoán nhanh
-        </button>
-        <button
-          onClick={() => setQuickMode(false)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            !quickMode
-              ? "bg-purple-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          🔧 Dự đoán chi tiết
-        </button>
       </div>
 
       {/* Input Form */}
@@ -268,9 +216,8 @@ const MLPredictor = () => {
           </div>
         </div>
 
-        {/* Advanced fields for full mode */}
-        {!quickMode && (
-          <div className="space-y-4 border-t pt-4">
+        {/* Advanced fields - Always visible now */}
+        <div className="space-y-4 border-t pt-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -381,12 +328,11 @@ const MLPredictor = () => {
               </label>
             </div>
           </div>
-        )}
       </div>
 
       {/* Predict Button */}
       <button
-        onClick={quickMode ? handleQuickPredict : handleFullPredict}
+        onClick={handlePredict}
         disabled={loading || !videoData.title.trim()}
         className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
       >
@@ -414,73 +360,36 @@ const MLPredictor = () => {
               <h4 className="text-lg font-semibold text-gray-900">
                 Kết quả dự đoán
               </h4>
-              {quickMode ? (
-                <span
-                  className={`font-bold text-lg ${
-                    prediction.is_trending ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {prediction.trending_probability}
-                </span>
-              ) : (
-                getPredictionIcon(prediction.prediction?.is_trending)
-              )}
+              {getPredictionIcon(prediction.prediction?.is_trending)}
             </div>
 
-            {quickMode ? (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Kết quả:</span>
-                  <span
-                    className={`font-semibold ${
-                      prediction.is_trending ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {prediction.is_trending
-                      ? "✅ Có khả năng Trending"
-                      : "❌ Khó trending"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Độ tin cậy:</span>
-                  <span className="font-medium">{prediction.confidence}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Đánh giá:</span>
-                  <span className="font-medium">
-                    {prediction.recommendation}
-                  </span>
-                </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Khả năng trending:</span>
+                <span
+                  className={`font-bold text-lg ${getPredictionColor(
+                    prediction.prediction?.trending_probability
+                  )}`}
+                >
+                  {(
+                    prediction.prediction?.trending_probability * 100
+                  ).toFixed(1)}
+                  %
+                </span>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Khả năng trending:</span>
-                  <span
-                    className={`font-bold text-lg ${getPredictionColor(
-                      prediction.prediction?.trending_probability
-                    )}`}
-                  >
-                    {(
-                      prediction.prediction?.trending_probability * 100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Độ tin cậy:</span>
-                  <span className="font-medium">
-                    {prediction.prediction?.confidence_level}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Model sử dụng:</span>
-                  <span className="font-medium">
-                    {prediction.model_info?.model_used}
-                  </span>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Độ tin cậy:</span>
+                <span className="font-medium">
+                  {prediction.prediction?.confidence_level}
+                </span>
               </div>
-            )}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Model sử dụng:</span>
+                <span className="font-medium">
+                  {prediction.model_info?.model_used}
+                </span>
+              </div>
+            </div>
 
             {/* Recommendations */}
             {prediction.advice && (
@@ -502,7 +411,7 @@ const MLPredictor = () => {
               </div>
             )}
 
-            {!quickMode && prediction.recommendation?.recommendations && (
+            {prediction.recommendation?.recommendations && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <h5 className="font-medium text-gray-900 mb-2">
                   💡 Gợi ý chi tiết:

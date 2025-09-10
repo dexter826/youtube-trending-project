@@ -16,16 +16,18 @@ Các bước chính:
 
 - Thu thập dữ liệu trending từ Kaggle (nhiều quốc gia)
 - Xử lý, phân tích dữ liệu với Spark
+- Huấn luyện mô hình Machine Learning dự đoán trending
 - Lưu kết quả vào MongoDB
-- Backend FastAPI cung cấp API cho frontend
-- Frontend React hiển thị bảng, biểu đồ, wordcloud
+- Backend FastAPI cung cấp API cho frontend và ML prediction
+- Frontend React hiển thị bảng, biểu đồ, wordcloud và giao diện dự đoán trending
 
 ## 3. Công nghệ sử dụng
 
 - **Apache Spark**: Xử lý dữ liệu lớn, phân tích video trending
+- **Scikit-learn**: Huấn luyện mô hình Machine Learning (Logistic Regression)
 - **MongoDB**: Lưu trữ dữ liệu thô và kết quả phân tích
-- **FastAPI**: Xây dựng REST API backend
-- **ReactJS + TailwindCSS + Chart.js**: Giao diện web trực quan
+- **FastAPI**: Xây dựng REST API backend và ML prediction service
+- **ReactJS + TailwindCSS + Chart.js**: Giao diện web trực quan với tính năng dự đoán trending
 - **Docker Compose**: Quản lý, khởi tạo các dịch vụ
 
 ## 4. Cấu trúc thư mục
@@ -35,6 +37,8 @@ youtube-trending-project/
 ├── data/           # Dữ liệu CSV các quốc gia
 ├── spark/          # Xử lý dữ liệu với PySpark
 │   ├── jobs/       # Script xử lý chính
+│   ├── ml_models/  # Huấn luyện mô hình Machine Learning
+│   ├── saved_models/ # Lưu trữ mô hình đã huấn luyện
 │   └── requirements.txt
 ├── backend/
 │   ├── app/        # FastAPI backend
@@ -80,7 +84,16 @@ python jobs/process_trending.py
 
 Dữ liệu sẽ được xử lý và lưu vào MongoDB.
 
-### Bước 4: Chạy backend FastAPI
+### Bước 4: Huấn luyện mô hình Machine Learning
+
+```powershell
+cd spark
+python ml_models/trending_predictor.py
+```
+
+Mô hình ML sẽ được huấn luyện và lưu vào thư mục `saved_models/`.
+
+### Bước 5: Chạy backend FastAPI
 
 ```powershell
 cd backend
@@ -90,7 +103,7 @@ uvicorn app.main:app --reload
 
 API sẽ chạy ở địa chỉ: `http://localhost:8000`
 
-### Bước 5: Chạy frontend React
+### Bước 6: Chạy frontend React
 
 ```powershell
 cd frontend
@@ -105,10 +118,33 @@ Giao diện web tại: `http://localhost:3000`
 - `GET /videos`: Lấy danh sách video trending
 - `GET /statistics`: Thống kê theo quốc gia, thể loại
 - `GET /wordcloud`: Sinh wordcloud từ tiêu đề/video
+- `POST /ml/predict-trending`: Dự đoán chi tiết khả năng trending của video
+- `GET /ml/model-info`: Thông tin model Machine Learning
 
 ---
 
 **Lưu ý:**
 
 - Đảm bảo các file dữ liệu CSV đã có trong thư mục `data/` trước khi chạy Spark job.
+- Chạy script huấn luyện ML trước khi sử dụng tính năng dự đoán trending.
 - Có thể chỉnh sửa cấu hình MongoDB trong `infra/mongo-init.js` hoặc biến môi trường backend.
+
+## 7. Tính năng Machine Learning
+
+Hệ thống tích hợp mô hình Machine Learning để dự đoán khả năng video sẽ trending:
+
+### Mô hình sử dụng:
+- **Logistic Regression**: Mô hình chính cho dự đoán
+- **Feature Engineering**: Tự động tạo các đặc trưng từ dữ liệu video
+- **Preprocessing**: Chuẩn hóa dữ liệu và xử lý missing values
+
+### Các đặc trưng chính:
+- Thông tin cơ bản: lượt xem, like, dislike, comment
+- Đặc trưng derived: tỷ lệ engagement, độ dài tiêu đề
+- Thông tin temporal: giờ đăng, ngày trong tuần
+- Thông tin kênh: số video, trung bình views
+
+### Giao diện dự đoán:
+- **Dự đoán chi tiết**: Nhập đầy đủ thông tin video để có kết quả chính xác nhất
+- **Kết quả**: Hiển thị % khả năng trending, độ tin cậy và gợi ý cải thiện
+- **Recommendations**: Đưa ra lời khuyên cụ thể để tăng khả năng trending

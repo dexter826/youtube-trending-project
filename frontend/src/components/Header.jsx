@@ -1,15 +1,15 @@
-import React from 'react';
-import { Play, Activity, Database } from 'lucide-react';
+import React from "react";
+import { Play, Activity, Database } from "lucide-react";
 
 const Header = ({ healthStatus }) => {
   const getStatusColor = () => {
-    if (!healthStatus) return 'bg-gray-500';
-    return healthStatus.status === 'healthy' ? 'bg-green-500' : 'bg-red-500';
+    if (!healthStatus) return "bg-gray-500";
+    return healthStatus.status === "healthy" ? "bg-green-500" : "bg-red-500";
   };
 
   const getStatusText = () => {
-    if (!healthStatus) return 'Đang tải...';
-    return healthStatus.status === 'healthy' ? 'Trực tuyến' : 'Ngoại tuyến';
+    if (!healthStatus) return "Đang tải...";
+    return healthStatus.status === "healthy" ? "Trực tuyến" : "Ngoại tuyến";
   };
 
   return (
@@ -57,7 +57,7 @@ const Header = ({ healthStatus }) => {
             {/* Tech Stack Badge */}
             <div className="hidden md:flex items-center space-x-2 bg-gray-100 px-3 py-1 rounded-full">
               <span className="text-xs font-medium text-gray-700">
-                Spark + MongoDB + FastAPI + React
+                Spark + MongoDB + FastAPI + React + Machine Learning
               </span>
             </div>
           </div>
@@ -82,8 +82,10 @@ const Header = ({ healthStatus }) => {
               <div className="col-span-2">
                 <span className="text-gray-500">Có sẵn:</span>
                 <span className="ml-2 font-medium text-green-600">
-                  {healthStatus.data.countries_available?.slice(0, 5).join(', ')}
-                  {healthStatus.data.countries_available?.length > 5 && '...'}
+                  {healthStatus.data.countries_available
+                    ?.slice(0, 5)
+                    .join(", ")}
+                  {healthStatus.data.countries_available?.length > 5 && "..."}
                 </span>
               </div>
             </div>
