@@ -14,7 +14,7 @@ data (CSV) → Spark (PySpark) → MongoDB → FastAPI → React Frontend
 
 Các bước chính:
 
-- Thu thập dữ liệu trending từ Kaggle (nhiều quốc gia)
+- Thu thập dữ liệu từ Kaggle [Trending YouTube Video Statistics](https://www.kaggle.com/datasets/datasnaek/youtube-new)
 - Xử lý, phân tích dữ liệu với Spark
 - Huấn luyện mô hình Machine Learning dự đoán trending
 - Lưu kết quả vào MongoDB
