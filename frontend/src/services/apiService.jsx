@@ -111,32 +111,6 @@ export const apiService = {
     const params = country ? { country } : {};
     const response = await api.get('/categories', { params });
     return response.data;
-  },
-
-  // Machine Learning Analysis Endpoints
-  async getMLClustering() {
-    const response = await api.get('/ml-analysis/clustering');
-    return response.data;
-  },
-
-  async getMLPredictions() {
-    const response = await api.get('/ml-analysis/predictions');
-    return response.data;
-  },
-
-  async getMLSentiment() {
-    const response = await api.get('/ml-analysis/sentiment');
-    return response.data;
-  },
-
-  async getMLAnomalies() {
-    const response = await api.get('/ml-analysis/anomalies');
-    return response.data;
-  },
-
-  async getMLCategories() {
-    const response = await api.get('/ml-analysis/categories');
-    return response.data;
   }
 };
 

@@ -3,7 +3,6 @@ import TrendingVideosChart from './TrendingVideosChart';
 import WordCloudComponent from './WordCloudComponent';
 import StatisticsPanel from './StatisticsPanel';
 import VideoTable from './VideoTable';
-import MLAnalysisPanel from './MLAnalysisPanel';
 
 const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate }) => {
   if (!trendingData && !wordcloudData) {
@@ -67,14 +66,6 @@ const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate 
           <VideoTable videos={trendingData.top_videos} />
         </div>
       )}
-
-      {/* Machine Learning Analysis Panel */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          🤖 Phân tích Machine Learning
-        </h3>
-        <MLAnalysisPanel />
-      </div>
 
       {/* Processing Info */}
       <div className="bg-gray-50 rounded-lg p-4">

@@ -3,13 +3,3 @@ pyspark==3.5.0
 pymongo==4.6.0
 pandas==2.1.4
 numpy==1.24.3
-
-# Machine Learning and Analytics
-scikit-learn==1.3.2
-scipy==1.11.4
-matplotlib==3.8.2
-seaborn==0.12.2
-
-# Text Processing for Sentiment Analysis
-nltk==3.8.1
-textblob==0.17.1
