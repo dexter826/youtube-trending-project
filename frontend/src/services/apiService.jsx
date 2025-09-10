@@ -124,7 +124,7 @@ const apiService = {
   // ============================================================================
 
   // Predict if a video will be trending
-  async predictTrending(videoData, modelName = 'random_forest') {
+  async predictTrending(videoData, modelName = 'logistic') {
     const response = await api.post('/ml/predict-trending', videoData, {
       params: { model_name: modelName }
     });
@@ -132,7 +132,7 @@ const apiService = {
   },
 
   // Batch prediction for multiple videos
-  async predictBatch(videosData, modelName = 'random_forest') {
+  async predictBatch(videosData, modelName = 'logistic') {
     const response = await api.post('/ml/predict-batch', {
       videos: videosData,
       model_name: modelName

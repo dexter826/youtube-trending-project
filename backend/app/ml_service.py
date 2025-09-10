@@ -199,7 +199,7 @@ class MLPredictionService:
             traceback.print_exc()
             return None
 
-    def predict_trending(self, video_data: Dict, model_name: str = 'random_forest') -> Optional[Dict]:
+    def predict_trending(self, video_data: Dict, model_name: str = 'logistic') -> Optional[Dict]:
         """Predict if a video will be trending"""
         if not self.is_loaded:
             return {
@@ -384,7 +384,7 @@ class MLPredictionService:
                 'error': f'Failed to get model info: {str(e)}'
             }
 
-    def predict_batch(self, videos_data: List[Dict], model_name: str = 'random_forest') -> List[Dict]:
+    def predict_batch(self, videos_data: List[Dict], model_name: str = 'logistic') -> List[Dict]:
         """Predict trending for multiple videos"""
         if not self.is_loaded:
             return [{'error': 'ML models not loaded', 'success': False}]

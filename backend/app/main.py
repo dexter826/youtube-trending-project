@@ -484,10 +484,10 @@ class VideoInput(BaseModel):
 
 class BatchVideoInput(BaseModel):
     videos: List[VideoInput]
-    model_name: str = "random_forest"
+    model_name: str = "logistic"
 
 @app.post("/ml/predict-trending")
-async def predict_video_trending(video: VideoInput, model_name: str = "random_forest"):
+async def predict_video_trending(video: VideoInput, model_name: str = "logistic"):
     """Predict if a single video will be trending"""
     try:
         ml_service = get_ml_service()
