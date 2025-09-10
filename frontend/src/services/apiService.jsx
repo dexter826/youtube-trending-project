@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -110,6 +110,53 @@ export const apiService = {
   async getCategoriesStats(country = null) {
     const params = country ? { country } : {};
     const response = await api.get('/categories', { params });
+    return response.data;
+  },
+
+  // ============================================================================
+  // MACHINE LEARNING ENDPOINTS
+  // ============================================================================
+
+  // Predict if a video will be trending
+  async predictTrending(videoData, modelName = 'random_forest') {
+    const response = await api.post('/ml/predict-trending', videoData, {
+      params: { model_name: modelName }
+    });
+    return response.data;
+  },
+
+  // Quick prediction with minimal data
+  async quickPredictTrending(title, views = 1000, likes = 100, comments = 10, categoryId = 28) {
+    const response = await api.post('/ml/quick-predict', null, {
+      params: {
+        title,
+        views,
+        likes,
+        comments,
+        category_id: categoryId
+      }
+    });
+    return response.data;
+  },
+
+  // Batch prediction for multiple videos
+  async predictBatch(videosData, modelName = 'random_forest') {
+    const response = await api.post('/ml/predict-batch', {
+      videos: videosData,
+      model_name: modelName
+    });
+    return response.data;
+  },
+
+  // Get ML model information
+  async getModelInfo() {
+    const response = await api.get('/ml/model-info');
+    return response.data;
+  },
+
+  // Check ML service health
+  async getMLHealth() {
+    const response = await api.get('/ml/health');
     return response.data;
   }
 };

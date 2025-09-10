@@ -1,6 +1,5 @@
 """
 FastAPI Backend for YouTube Trending Analytics
-Author: BigData Expert
 Description: REST API to serve processed YouTube trending data
 """
 
@@ -10,9 +9,13 @@ from fastapi.responses import JSONResponse
 from pymongo import MongoClient
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
+from pydantic import BaseModel
 import os
 from bson import ObjectId
 import json
+
+# Import ML service
+from .ml_service import get_ml_service, initialize_ml_service
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -56,15 +59,21 @@ async def startup_event():
         client.admin.command('ismaster')
         print("✅ MongoDB connection successful")
         
+        # Initialize ML service
+        ml_service = initialize_ml_service(MONGO_URI, DB_NAME)
+        print("🤖 ML service initialized")
+        
         # Check if data exists
         raw_count = db.raw_videos.count_documents({})
         trending_count = db.trending_results.count_documents({})
         wordcloud_count = db.wordcloud_data.count_documents({})
+        ml_features_count = db.ml_features.count_documents({})
         
         print(f"📊 Database status:")
         print(f"   - Raw videos: {raw_count}")
         print(f"   - Trending results: {trending_count}")
         print(f"   - Wordcloud data: {wordcloud_count}")
+        print(f"   - ML features: {ml_features_count}")
         
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
@@ -400,6 +409,170 @@ async def get_categories_stats(country: Optional[str] = None):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch categories stats: {str(e)}")
+
+# ============================================================================
+# MACHINE LEARNING ENDPOINTS
+# ============================================================================
+
+# Pydantic models for ML requests
+class VideoInput(BaseModel):
+    title: str
+    views: int = 0
+    likes: int = 0
+    dislikes: int = 0
+    comment_count: int = 0
+    category_id: int = 1
+    publish_time: Optional[str] = None
+    tags: str = ""
+    comments_disabled: bool = False
+    ratings_disabled: bool = False
+    channel_title: Optional[str] = None
+    video_id: Optional[str] = None
+
+class BatchVideoInput(BaseModel):
+    videos: List[VideoInput]
+    model_name: str = "random_forest"
+
+@app.post("/ml/predict-trending")
+async def predict_video_trending(video: VideoInput, model_name: str = "random_forest"):
+    """Predict if a single video will be trending"""
+    try:
+        ml_service = get_ml_service()
+        
+        # Convert Pydantic model to dict
+        video_data = video.dict()
+        
+        # Make prediction
+        result = ml_service.predict_trending(video_data, model_name)
+        
+        if not result or not result.get('success', False):
+            raise HTTPException(
+                status_code=500, 
+                detail=result.get('error', 'Prediction failed') if result else 'ML service error'
+            )
+        
+        return JSONResponse(content=result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ML prediction failed: {str(e)}")
+
+@app.post("/ml/predict-batch")
+async def predict_videos_trending(batch_input: BatchVideoInput):
+    """Predict trending for multiple videos"""
+    try:
+        ml_service = get_ml_service()
+        
+        # Convert Pydantic models to dicts
+        videos_data = [video.dict() for video in batch_input.videos]
+        
+        # Make batch prediction
+        results = ml_service.predict_batch(videos_data, batch_input.model_name)
+        
+        return {
+            "success": True,
+            "total_predictions": len(results),
+            "model_used": batch_input.model_name,
+            "predictions": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch prediction failed: {str(e)}")
+
+@app.get("/ml/model-info")
+async def get_ml_model_info():
+    """Get information about loaded ML models"""
+    try:
+        ml_service = get_ml_service()
+        model_info = ml_service.get_model_info()
+        
+        if not model_info.get('success', False):
+            raise HTTPException(
+                status_code=404, 
+                detail=model_info.get('error', 'Model info not available')
+            )
+        
+        return JSONResponse(content=model_info)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get model info: {str(e)}")
+
+@app.get("/ml/health")
+async def ml_health_check():
+    """Check ML service health"""
+    try:
+        ml_service = get_ml_service()
+        
+        if not ml_service.is_loaded:
+            return {
+                "status": "not_ready",
+                "message": "ML models not loaded. Please train models first.",
+                "models_available": 0
+            }
+        
+        return {
+            "status": "ready",
+            "message": "ML service is ready",
+            "models_available": len(ml_service.models),
+            "available_models": list(ml_service.models.keys())
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"ML service error: {str(e)}",
+            "models_available": 0
+        }
+
+@app.post("/ml/quick-predict")
+async def quick_predict_trending(
+    title: str,
+    views: int = 1000,
+    likes: int = 100,
+    comments: int = 10,
+    category_id: int = 28
+):
+    """Quick prediction endpoint with minimal required fields"""
+    try:
+        ml_service = get_ml_service()
+        
+        # Create simple video data
+        video_data = {
+            'title': title,
+            'views': views,
+            'likes': likes,
+            'dislikes': max(1, views // 100),  # Estimate dislikes
+            'comment_count': comments,
+            'category_id': category_id,
+            'publish_time': datetime.now().isoformat(),
+            'tags': '',
+            'comments_disabled': False,
+            'ratings_disabled': False
+        }
+        
+        result = ml_service.predict_trending(video_data, 'random_forest')
+        
+        if not result or not result.get('success', False):
+            raise HTTPException(status_code=500, detail="Prediction failed")
+        
+        # Simplified response
+        prediction = result['prediction']
+        return {
+            "title": title,
+            "is_trending": prediction['is_trending'],
+            "trending_probability": f"{prediction['trending_probability']:.1%}",
+            "confidence": prediction['confidence_level'],
+            "recommendation": result['recommendation']['trending_probability_assessment'],
+            "advice": result['recommendation']['recommendations'][:2]  # Top 2 recommendations
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Quick prediction failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
