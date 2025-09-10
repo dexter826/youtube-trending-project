@@ -289,17 +289,41 @@ const MLPredictor = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Thời gian đăng
                 </label>
-                <input
-                  type="datetime-local"
-                  value={videoData.publish_time.slice(0, 16)}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "publish_time",
-                      new Date(e.target.value).toISOString()
-                    )
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={videoData.publish_time ? videoData.publish_time.slice(0, 10) : ""}
+                    onChange={(e) => {
+                      const dateValue = e.target.value;
+                      if (dateValue) {
+                        const currentDate = videoData.publish_time ? new Date(videoData.publish_time) : new Date();
+                        const hours = String(currentDate.getUTCHours()).padStart(2, '0');
+                        const minutes = String(currentDate.getUTCMinutes()).padStart(2, '0');
+                        const newDateTime = `${dateValue}T${hours}:${minutes}:00.000Z`;
+                        handleInputChange("publish_time", newDateTime);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="YYYY-MM-DD"
+                  />
+                  <input
+                    type="time"
+                    value={videoData.publish_time ? videoData.publish_time.slice(11, 16) : ""}
+                    onChange={(e) => {
+                      const timeValue = e.target.value;
+                      if (timeValue) {
+                        const currentDate = videoData.publish_time ? videoData.publish_time.slice(0, 10) : new Date().toISOString().slice(0, 10);
+                        const newDateTime = `${currentDate}T${timeValue}:00.000Z`;
+                        handleInputChange("publish_time", newDateTime);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="HH:MM (24h)"
+                  />
+                </div>
+                <small className="text-gray-500 text-xs mt-1">
+                  Format: YYYY-MM-DD và HH:MM (24 giờ)
+                </small>
               </div>
             </div>
 
