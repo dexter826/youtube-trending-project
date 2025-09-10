@@ -114,7 +114,7 @@ class MLPredictionService:
             df['dislike_ratio'] = np.where(df['views'] > 0, df['dislikes'] / df['views'], 0)
             df['comment_ratio'] = np.where(df['views'] > 0, df['comment_count'] / df['views'], 0)
             df['engagement_score'] = np.where(df['views'] > 0, 
-                                            (df['likes'] + df['comment_count']) / df['views'], 0)
+                                            (df['likes'] + df['dislikes'] + df['comment_count']) / df['views'], 0)
             
             # Content features
             df['title_length'] = df['title'].astype(str).str.len()
@@ -274,7 +274,10 @@ class MLPredictionService:
                 'input_summary': {
                     'views': video_data.get('views', 0),
                     'likes': video_data.get('likes', 0),
-                    'engagement_rate': round(video_data.get('likes', 0) / max(video_data.get('views', 1), 1) * 100, 2)
+                    'dislikes': video_data.get('dislikes', 0),
+                    'comments': video_data.get('comment_count', 0),
+                    'total_engagement': video_data.get('likes', 0) + video_data.get('dislikes', 0) + video_data.get('comment_count', 0),
+                    'engagement_rate': round((video_data.get('likes', 0) + video_data.get('dislikes', 0) + video_data.get('comment_count', 0)) / max(video_data.get('views', 1), 1) * 100, 2)
                 }
             }
             
