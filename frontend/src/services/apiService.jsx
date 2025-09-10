@@ -73,6 +73,12 @@ const apiService = {
     return response.data;
   },
 
+  // Get YouTube categories
+  async getCategories() {
+    const response = await api.get('/categories');
+    return response.data;
+  },
+
   // Get trending videos
   async getTrendingVideos(country, date, limit = 10) {
     const response = await api.get('/trending', {

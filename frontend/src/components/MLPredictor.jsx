@@ -1,20 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Brain, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
-import apiService from '../services/apiService';
-import LoadingSpinner from './LoadingSpinner';
+import React, { useState, useEffect } from "react";
+import {
+  Sparkles,
+  Brain,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import apiService from "../services/apiService";
+import LoadingSpinner from "./LoadingSpinner";
 
 const MLPredictor = () => {
   const [videoData, setVideoData] = useState({
-    title: '',
+    title: "",
     views: 1000,
     likes: 100,
     dislikes: 5,
     comment_count: 10,
     category_id: 28,
-    tags: '',
+    tags: "",
     publish_time: new Date().toISOString(),
     comments_disabled: false,
-    ratings_disabled: false
+    ratings_disabled: false,
+    channel_title: "",
   });
 
   const [prediction, setPrediction] = useState(null);
@@ -22,48 +29,62 @@ const MLPredictor = () => {
   const [error, setError] = useState(null);
   const [modelInfo, setModelInfo] = useState(null);
   const [quickMode, setQuickMode] = useState(true);
-
-  // Categories mapping
-  const categories = {
-    1: 'Film & Animation',
-    2: 'Autos & Vehicles', 
-    10: 'Music',
-    15: 'Pets & Animals',
-    17: 'Sports',
-    19: 'Travel & Events',
-    20: 'Gaming',
-    22: 'People & Blogs',
-    23: 'Comedy',
-    24: 'Entertainment',
-    25: 'News & Politics',
-    26: 'Howto & Style',
-    27: 'Education',
-    28: 'Science & Technology'
-  };
+  const [categories, setCategories] = useState({});
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   useEffect(() => {
     loadModelInfo();
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const data = await apiService.getCategories();
+      setCategories(data.categories || {});
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+      // Fallback categories tiếng Việt
+      setCategories({
+        1: "Phim & Hoạt hình",
+        2: "Ô tô & Xe cộ",
+        10: "Âm nhạc",
+        15: "Thú cưng & Động vật",
+        17: "Thể thao",
+        19: "Du lịch & Sự kiện",
+        20: "Game",
+        22: "Con người & Blog",
+        23: "Hài kịch",
+        24: "Giải trí",
+        25: "Tin tức & Chính trị",
+        26: "Hướng dẫn & Phong cách",
+        27: "Giáo dục",
+        28: "Khoa học & Công nghệ",
+      });
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const loadModelInfo = async () => {
     try {
       const info = await apiService.getModelInfo();
       setModelInfo(info);
     } catch (err) {
-      console.error('Failed to load model info:', err);
+      console.error("Failed to load model info:", err);
     }
   };
 
   const handleInputChange = (field, value) => {
-    setVideoData(prev => ({
+    setVideoData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const handleQuickPredict = async () => {
     if (!videoData.title.trim()) {
-      setError('Vui lòng nhập tiêu đề video');
+      setError("Vui lòng nhập tiêu đề video");
       return;
     }
 
@@ -79,7 +100,7 @@ const MLPredictor = () => {
         videoData.comment_count,
         videoData.category_id
       );
-      
+
       setPrediction(result);
     } catch (err) {
       setError(`Dự đoán thất bại: ${err.message}`);
@@ -90,7 +111,7 @@ const MLPredictor = () => {
 
   const handleFullPredict = async () => {
     if (!videoData.title.trim()) {
-      setError('Vui lòng nhập tiêu đề video');
+      setError("Vui lòng nhập tiêu đề video");
       return;
     }
 
@@ -109,9 +130,9 @@ const MLPredictor = () => {
   };
 
   const getPredictionColor = (probability) => {
-    if (probability > 0.7) return 'text-green-600';
-    if (probability > 0.4) return 'text-yellow-600';
-    return 'text-red-600';
+    if (probability > 0.7) return "text-green-600";
+    if (probability > 0.4) return "text-yellow-600";
+    return "text-red-600";
   };
 
   const getPredictionIcon = (isTrending) => {
@@ -143,9 +164,9 @@ const MLPredictor = () => {
         <button
           onClick={() => setQuickMode(true)}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            quickMode 
-              ? 'bg-purple-600 text-white' 
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            quickMode
+              ? "bg-purple-600 text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
           ⚡ Dự đoán nhanh
@@ -153,9 +174,9 @@ const MLPredictor = () => {
         <button
           onClick={() => setQuickMode(false)}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            !quickMode 
-              ? 'bg-purple-600 text-white' 
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            !quickMode
+              ? "bg-purple-600 text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
           🔧 Dự đoán chi tiết
@@ -172,7 +193,7 @@ const MLPredictor = () => {
           <input
             type="text"
             value={videoData.title}
-            onChange={(e) => handleInputChange('title', e.target.value)}
+            onChange={(e) => handleInputChange("title", e.target.value)}
             placeholder="Nhập tiêu đề video..."
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
@@ -187,44 +208,62 @@ const MLPredictor = () => {
             <input
               type="number"
               value={videoData.views}
-              onChange={(e) => handleInputChange('views', parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleInputChange("views", parseInt(e.target.value) || 0)
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Likes
+              Lượt thích
             </label>
             <input
               type="number"
               value={videoData.likes}
-              onChange={(e) => handleInputChange('likes', parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleInputChange("likes", parseInt(e.target.value) || 0)
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Comments
+              Bình luận
             </label>
             <input
               type="number"
               value={videoData.comment_count}
-              onChange={(e) => handleInputChange('comment_count', parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleInputChange(
+                  "comment_count",
+                  parseInt(e.target.value) || 0
+                )
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
+              Thể loại
             </label>
             <select
               value={videoData.category_id}
-              onChange={(e) => handleInputChange('category_id', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              onChange={(e) =>
+                handleInputChange("category_id", parseInt(e.target.value))
+              }
+              disabled={loadingCategories}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
             >
-              {Object.entries(categories).map(([id, name]) => (
-                <option key={id} value={id}>{name}</option>
-              ))}
+              {loadingCategories ? (
+                <option>Đang tải...</option>
+              ) : (
+                Object.entries(categories).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
@@ -235,28 +274,51 @@ const MLPredictor = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dislikes
+                  Lượt không thích
                 </label>
                 <input
                   type="number"
                   value={videoData.dislikes}
-                  onChange={(e) => handleInputChange('dislikes', parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleInputChange("dislikes", parseInt(e.target.value) || 0)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Publish Time
+                  Thời gian đăng
                 </label>
                 <input
                   type="datetime-local"
                   value={videoData.publish_time.slice(0, 16)}
-                  onChange={(e) => handleInputChange('publish_time', new Date(e.target.value).toISOString())}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "publish_time",
+                      new Date(e.target.value).toISOString()
+                    )
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             </div>
-            
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tên kênh *
+                </label>
+                <input
+                  type="text"
+                  value={videoData.channel_title}
+                  onChange={(e) => handleInputChange("channel_title", e.target.value)}
+                  placeholder="Nhập tên channel..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div></div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tags (phân cách bằng |)
@@ -264,7 +326,7 @@ const MLPredictor = () => {
               <input
                 type="text"
                 value={videoData.tags}
-                onChange={(e) => handleInputChange('tags', e.target.value)}
+                onChange={(e) => handleInputChange("tags", e.target.value)}
                 placeholder="tag1|tag2|tag3"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
@@ -275,19 +337,23 @@ const MLPredictor = () => {
                 <input
                   type="checkbox"
                   checked={videoData.comments_disabled}
-                  onChange={(e) => handleInputChange('comments_disabled', e.target.checked)}
+                  onChange={(e) =>
+                    handleInputChange("comments_disabled", e.target.checked)
+                  }
                   className="mr-2"
                 />
-                Comments disabled
+                Tắt bình luận
               </label>
               <label className="flex items-center">
                 <input
                   type="checkbox"
                   checked={videoData.ratings_disabled}
-                  onChange={(e) => handleInputChange('ratings_disabled', e.target.checked)}
+                  onChange={(e) =>
+                    handleInputChange("ratings_disabled", e.target.checked)
+                  }
                   className="mr-2"
                 />
-                Ratings disabled
+                Tắt đánh giá
               </label>
             </div>
           </div>
@@ -305,7 +371,7 @@ const MLPredictor = () => {
         ) : (
           <Sparkles className="w-5 h-5" />
         )}
-        {loading ? 'Đang dự đoán...' : '🚀 Dự đoán Trending'}
+        {loading ? "Đang dự đoán..." : "🚀 Dự đoán Trending"}
       </button>
 
       {/* Error Message */}
@@ -321,9 +387,15 @@ const MLPredictor = () => {
         <div className="mt-6 space-y-4">
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold text-gray-900">Kết quả dự đoán</h4>
+              <h4 className="text-lg font-semibold text-gray-900">
+                Kết quả dự đoán
+              </h4>
               {quickMode ? (
-                <span className={`font-bold text-lg ${prediction.is_trending ? 'text-green-600' : 'text-red-600'}`}>
+                <span
+                  className={`font-bold text-lg ${
+                    prediction.is_trending ? "text-green-600" : "text-red-600"
+                  }`}
+                >
                   {prediction.trending_probability}
                 </span>
               ) : (
@@ -335,8 +407,14 @@ const MLPredictor = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Kết quả:</span>
-                  <span className={`font-semibold ${prediction.is_trending ? 'text-green-600' : 'text-red-600'}`}>
-                    {prediction.is_trending ? '✅ Có khả năng Trending' : '❌ Khó trending'}
+                  <span
+                    className={`font-semibold ${
+                      prediction.is_trending ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {prediction.is_trending
+                      ? "✅ Có khả năng Trending"
+                      : "❌ Khó trending"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -345,24 +423,37 @@ const MLPredictor = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Đánh giá:</span>
-                  <span className="font-medium">{prediction.recommendation}</span>
+                  <span className="font-medium">
+                    {prediction.recommendation}
+                  </span>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Khả năng trending:</span>
-                  <span className={`font-bold text-lg ${getPredictionColor(prediction.prediction?.trending_probability)}`}>
-                    {(prediction.prediction?.trending_probability * 100).toFixed(1)}%
+                  <span
+                    className={`font-bold text-lg ${getPredictionColor(
+                      prediction.prediction?.trending_probability
+                    )}`}
+                  >
+                    {(
+                      prediction.prediction?.trending_probability * 100
+                    ).toFixed(1)}
+                    %
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Độ tin cậy:</span>
-                  <span className="font-medium">{prediction.prediction?.confidence_level}</span>
+                  <span className="font-medium">
+                    {prediction.prediction?.confidence_level}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Model sử dụng:</span>
-                  <span className="font-medium">{prediction.model_info?.model_used}</span>
+                  <span className="font-medium">
+                    {prediction.model_info?.model_used}
+                  </span>
                 </div>
               </div>
             )}
@@ -370,10 +461,15 @@ const MLPredictor = () => {
             {/* Recommendations */}
             {prediction.advice && (
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <h5 className="font-medium text-gray-900 mb-2">💡 Gợi ý cải thiện:</h5>
+                <h5 className="font-medium text-gray-900 mb-2">
+                  💡 Gợi ý cải thiện:
+                </h5>
                 <ul className="space-y-1">
                   {prediction.advice.map((advice, index) => (
-                    <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
+                    <li
+                      key={index}
+                      className="text-sm text-gray-600 flex items-start gap-2"
+                    >
                       <span className="text-purple-500">•</span>
                       {advice}
                     </li>
@@ -384,14 +480,21 @@ const MLPredictor = () => {
 
             {!quickMode && prediction.recommendation?.recommendations && (
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <h5 className="font-medium text-gray-900 mb-2">💡 Gợi ý chi tiết:</h5>
+                <h5 className="font-medium text-gray-900 mb-2">
+                  💡 Gợi ý chi tiết:
+                </h5>
                 <ul className="space-y-1">
-                  {prediction.recommendation.recommendations.map((rec, index) => (
-                    <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
-                      <span className="text-purple-500">•</span>
-                      {rec}
-                    </li>
-                  ))}
+                  {prediction.recommendation.recommendations.map(
+                    (rec, index) => (
+                      <li
+                        key={index}
+                        className="text-sm text-gray-600 flex items-start gap-2"
+                      >
+                        <span className="text-purple-500">•</span>
+                        {rec}
+                      </li>
+                    )
+                  )}
                 </ul>
               </div>
             )}
@@ -403,8 +506,13 @@ const MLPredictor = () => {
       {modelInfo && (
         <div className="mt-4 text-xs text-gray-500 bg-gray-50 rounded p-3">
           <div className="flex justify-between items-center">
-            <span>Models available: {modelInfo.available_models?.join(', ')}</span>
-            <span>Trained: {new Date(modelInfo.trained_at).toLocaleDateString('vi-VN')}</span>
+            <span>
+              Models available: {modelInfo.available_models?.join(", ")}
+            </span>
+            <span>
+              Trained:{" "}
+              {new Date(modelInfo.trained_at).toLocaleDateString("vi-VN")}
+            </span>
           </div>
         </div>
       )}

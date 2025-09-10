@@ -147,6 +147,59 @@ async def get_available_dates(country: Optional[str] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch dates: {str(e)}")
 
+@app.get("/categories")
+async def get_youtube_categories():
+    """Get YouTube video categories from category mapping file"""
+    try:
+        import json
+        import os
+        
+        # Load categories from US category file (most complete)
+        category_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                   "data", "US_category_id.json")
+        
+        if not os.path.exists(category_file):
+            # Fallback categories if file not found
+            return {
+                "categories": {
+                    "1": "Film & Animation",
+                    "2": "Autos & Vehicles", 
+                    "10": "Music",
+                    "15": "Pets & Animals",
+                    "17": "Sports",
+                    "19": "Travel & Events",
+                    "20": "Gaming",
+                    "22": "People & Blogs",
+                    "23": "Comedy",
+                    "24": "Entertainment",
+                    "25": "News & Politics",
+                    "26": "Howto & Style",
+                    "27": "Education",
+                    "28": "Science & Technology"
+                },
+                "source": "fallback"
+            }
+        
+        with open(category_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Extract categories from YouTube API format
+        categories = {}
+        for item in data.get("items", []):
+            category_id = item.get("id")
+            title = item.get("snippet", {}).get("title", "Unknown")
+            if category_id and title:
+                categories[category_id] = title
+        
+        return {
+            "categories": categories,
+            "count": len(categories),
+            "source": "US_category_id.json"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch categories: {str(e)}")
+
 @app.get("/trending")
 async def get_trending_videos(
     country: str = Query(..., description="Country code (e.g., US, GB, CA)"),
