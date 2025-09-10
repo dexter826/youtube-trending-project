@@ -47,7 +47,7 @@ api.interceptors.response.use(
   }
 );
 
-export const apiService = {
+const apiService = {
   // Health check
   async getHealth() {
     const response = await api.get('/health');
@@ -161,4 +161,6 @@ export const apiService = {
   }
 };
 
-export default api;
+// Export the apiService object with all methods, and also export the axios instance
+export { api };
+export default apiService;

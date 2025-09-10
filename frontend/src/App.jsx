@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { BarChart3, Brain, Activity } from 'lucide-react';
+import { BarChart3, Brain } from 'lucide-react';
 import Header from './components/Header';
 import FilterPanel from './components/FilterPanel';
 import Dashboard from './components/Dashboard';
 import MLPredictor from './components/MLPredictor';
-import QuickMLPredictor from './components/QuickMLPredictor';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
-import { apiService } from './services/apiService';
+import apiService from './services/apiService';
 
 function App() {
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' or 'ml-predictor'
@@ -191,15 +190,8 @@ function App() {
         {/* ML Predictor Tab */}
         {activeTab === 'ml-predictor' && (
           <div className="space-y-8">
-            {/* Quick ML Predictor in sidebar style */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1">
-                <QuickMLPredictor />
-              </div>
-              <div className="lg:col-span-2">
-                <MLPredictor />
-              </div>
-            </div>
+            {/* Main ML Predictor - Full interface */}
+            <MLPredictor />
           </div>
         )}
 
