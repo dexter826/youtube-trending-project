@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+*/node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Spark artifacts
+spark/artifacts/
+*.log
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+build/
+dist/
+frontend/build/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Data files (keep for demo)
+# Uncomment to keep sample data out of git; remove the comment if you want the data tracked
+/data/
+
+# If you prefer a more specific pattern, use one of the lines below instead:
+# data/*.csv
+# data/**
