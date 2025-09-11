@@ -17,6 +17,7 @@ import json
 # Import ML services
 from .ml_api import get_mllib_service, initialize_mllib_service
 from .clustering_api import get_advanced_clustering_service
+from .regression_api import get_regression_service, ViewPredictionRequest
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -67,8 +68,10 @@ async def startup_event():
         # Initialize MLlib services
         mllib_service = initialize_mllib_service(MONGO_URI, DB_NAME)
         advanced_clustering_service = get_advanced_clustering_service()
+        regression_service = get_regression_service()
         print("🤖 Spark MLlib service initialized")
         print("🧠 Advanced clustering service initialized")
+        print("📈 Regression analysis service initialized")
         
         # Check if data exists
         raw_count = db.raw_videos.count_documents({})
@@ -740,6 +743,145 @@ async def get_cluster_configuration():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get cluster config: {str(e)}")
+
+# ================================
+# REGRESSION ANALYSIS ENDPOINTS 
+# ================================
+
+@app.post("/regression/train")
+async def train_regression_models():
+    """Train all regression models for view prediction and trend forecasting"""
+    try:
+        regression_service = get_regression_service()
+        view_results = regression_service.train_view_prediction_models()
+        trend_results = regression_service.train_trend_forecast_models()
+        
+        return {
+            'status': 'success',
+            'view_prediction_models': view_results,
+            'trend_forecast_models': trend_results,
+            'total_models_trained': len(view_results) + len(trend_results),
+            'training_completed_at': datetime.now().isoformat(),
+            'framework': 'Spark MLlib Regression',
+            'features': [
+                'Advanced view prediction',
+                'Time-series trend forecasting', 
+                'Multiple regression algorithms',
+                'HDFS model storage',
+                'Feature importance analysis'
+            ]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Regression training failed: {str(e)}")
+
+@app.post("/regression/predict-views")
+async def predict_video_views(request: ViewPredictionRequest):
+    """Predict view count for a video based on its features"""
+    try:
+        regression_service = get_regression_service()
+        prediction = regression_service.predict_views(request)
+        
+        return {
+            'status': 'success',
+            'prediction': prediction,
+            'input_features': request.dict(),
+            'model_type': 'regression_analysis',
+            'timestamp': datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"View prediction failed: {str(e)}")
+
+@app.get("/regression/models")
+async def get_regression_models():
+    """Get information about trained regression models"""
+    try:
+        results = list(db.regression_results.find({}, {'_id': 0}).sort('timestamp', -1).limit(10))
+        
+        return {
+            'status': 'success',
+            'regression_models': results,
+            'total_results': len(results),
+            'model_types': ['view_prediction', 'trend_forecast'],
+            'algorithms': ['linear_regression', 'random_forest', 'gradient_boosting'],
+            'framework': 'Spark MLlib Regression'
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get regression models: {str(e)}")
+
+@app.get("/regression/performance")
+async def get_regression_performance():
+    """Get performance metrics of regression models"""
+    try:
+        # Get latest results
+        latest_view = db.regression_results.find_one(
+            {'type': 'view_prediction'}, 
+            sort=[('timestamp', -1)]
+        )
+        latest_trend = db.regression_results.find_one(
+            {'type': 'trend_forecast'}, 
+            sort=[('timestamp', -1)]
+        )
+        
+        return {
+            'status': 'success',
+            'view_prediction_performance': latest_view['results'] if latest_view else {},
+            'trend_forecast_performance': latest_trend['results'] if latest_trend else {},
+            'metrics_available': ['RMSE', 'MAE', 'R²', 'Feature Importance'],
+            'last_updated': latest_view['timestamp'] if latest_view else None,
+            'framework': 'Spark MLlib Regression Analysis'
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get regression performance: {str(e)}")
+
+@app.get("/regression/analysis")
+async def get_regression_analysis():
+    """Get comprehensive regression analysis results"""
+    try:
+        # Get all regression results
+        view_models = list(db.regression_results.find({'type': 'view_prediction'}).sort('timestamp', -1).limit(5))
+        trend_models = list(db.regression_results.find({'type': 'trend_forecast'}).sort('timestamp', -1).limit(5))
+        
+        # Calculate summary statistics
+        total_models = len(view_models) + len(trend_models)
+        best_view_model = None
+        best_trend_model = None
+        
+        if view_models:
+            best_view_model = max(view_models[0]['results'].items(), key=lambda x: x[1].get('r2', 0))
+        
+        if trend_models:
+            best_trend_model = max(trend_models[0]['results'].items(), key=lambda x: x[1].get('r2', 0))
+        
+        return {
+            'status': 'success',
+            'analysis_summary': {
+                'total_regression_models': total_models,
+                'view_prediction_models': len(view_models),
+                'trend_forecast_models': len(trend_models),
+                'best_view_model': best_view_model[0] if best_view_model else None,
+                'best_trend_model': best_trend_model[0] if best_trend_model else None
+            },
+            'recent_trainings': {
+                'view_prediction': view_models,
+                'trend_forecast': trend_models
+            },
+            'capabilities': [
+                'Video view count prediction',
+                'Trending forecast analysis',
+                'Feature importance ranking',
+                'Multi-algorithm comparison',
+                'Time-series modeling'
+            ],
+            'framework': 'Advanced Spark MLlib Regression',
+            'big_data_compliance': True
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get regression analysis: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
