@@ -30,6 +30,7 @@ class TrendingFeatureEngine:
             .config("spark.driver.memory", "4g") \
             .config("spark.executor.memory", "4g") \
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+            .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:9000") \
             .getOrCreate()
         
         self.spark.sparkContext.setLogLevel("WARN")
@@ -38,7 +39,10 @@ class TrendingFeatureEngine:
         self.mongo_client = MongoClient(MONGO_URI)
         self.db = self.mongo_client[DB_NAME]
         
-        print("[OK] Feature Engineering - Spark session initialized")
+        # HDFS configuration
+        self.hdfs_base_path = "hdfs://namenode:9000/youtube_trending"
+        
+        print("[OK] Feature Engineering - Spark session with HDFS support initialized")
 
     def load_raw_data(self):
         """Load raw video data from MongoDB"""

@@ -32,7 +32,63 @@ services:
     networks:
       - youtube-network
 
-  # Spark Master
+  # HDFS NameNode
+  hdfs-namenode:
+    image: apache/hadoop:3.3.5
+    container_name: youtube-hdfs-namenode
+    hostname: namenode
+    environment:
+      - CLUSTER_NAME=youtube-hadoop
+      - HDFS_CONF_dfs_nameservices=hdfscluster
+      - HDFS_CONF_dfs_ha_namenodes_hdfscluster=nn1
+      - HDFS_CONF_dfs_namenode_rpc_address_hdfscluster_nn1=namenode:9000
+      - HDFS_CONF_dfs_namenode_http_address_hdfscluster_nn1=namenode:9870
+      - HDFS_CONF_dfs_replication=1
+      - HDFS_CONF_dfs_namenode_name_dir=/hadoop/dfs/name
+    ports:
+      - "9870:9870"  # NameNode Web UI
+      - "9000:9000"  # NameNode RPC
+    volumes:
+      - hdfs_namenode:/hadoop/dfs/name
+      - ../data:/input-data  # Mount local data for initial upload
+    command: ["hdfs", "namenode"]
+    networks:
+      - youtube-network
+
+  # HDFS DataNode
+  hdfs-datanode:
+    image: apache/hadoop:3.3.5
+    container_name: youtube-hdfs-datanode
+    hostname: datanode
+    environment:
+      - HDFS_CONF_dfs_datanode_data_dir=/hadoop/dfs/data
+      - HDFS_CONF_dfs_namenode_rpc_address=namenode:9000
+      - HDFS_CONF_dfs_replication=1
+    volumes:
+      - hdfs_datanode:/hadoop/dfs/data
+    depends_on:
+      - hdfs-namenode
+    command: ["hdfs", "datanode"]
+    networks:
+      - youtube-network
+
+  # HDFS Data Uploader (One-time initialization)
+  hdfs-init:
+    image: apache/hadoop:3.3.5
+    container_name: youtube-hdfs-init
+    environment:
+      - HDFS_CONF_dfs_namenode_rpc_address=namenode:9000
+    volumes:
+      - ../data:/input-data
+      - ./hdfs-init.sh:/hdfs-init.sh
+    depends_on:
+      - hdfs-namenode
+      - hdfs-datanode
+    command: ["bash", "/hdfs-init.sh"]
+    networks:
+      - youtube-network
+
+  # Spark Master (Updated with HDFS integration)
   spark-master:
     image: bitnami/spark:3.5
     container_name: youtube-spark-master
@@ -43,16 +99,20 @@ services:
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
+      - HDFS_NAMENODE_URL=hdfs://namenode:9000
     ports:
       - "8080:8080"
       - "7077:7077"
     volumes:
       - ../spark:/opt/bitnami/spark/jobs
       - ../data:/opt/bitnami/spark/data
+    depends_on:
+      - hdfs-namenode
+      - hdfs-datanode
     networks:
       - youtube-network
 
-  # Spark Worker
+  # Spark Worker (Updated with HDFS integration)
   spark-worker:
     image: bitnami/spark:3.5
     container_name: youtube-spark-worker
@@ -66,8 +126,11 @@ services:
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
+      - HDFS_NAMENODE_URL=hdfs://namenode:9000
     depends_on:
       - spark-master
+      - hdfs-namenode
+      - hdfs-datanode
     volumes:
       - ../spark:/opt/bitnami/spark/jobs
       - ../data:/opt/bitnami/spark/data
@@ -76,6 +139,8 @@ services:
 
 volumes:
   mongodb_data:
+  hdfs_namenode:
+  hdfs_datanode:
 
 networks:
   youtube-network:

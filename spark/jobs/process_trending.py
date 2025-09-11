@@ -33,6 +33,7 @@ class YouTubeTrendingProcessor:
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
             .config("spark.mongodb.input.uri", f"{MONGO_URI}{DB_NAME}.raw_videos") \
             .config("spark.mongodb.output.uri", f"{MONGO_URI}{DB_NAME}.trending_results") \
+            .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:9000") \
             .getOrCreate()
         
         self.spark.sparkContext.setLogLevel("WARN")
@@ -41,16 +42,20 @@ class YouTubeTrendingProcessor:
         self.mongo_client = MongoClient(MONGO_URI)
         self.db = self.mongo_client[DB_NAME]
         
-        print("[OK] Spark session and MongoDB connection initialized")
+        # HDFS configuration
+        self.hdfs_base_path = "hdfs://namenode:9000/youtube_trending"
+        
+        print("[OK] Spark session with HDFS support and MongoDB connection initialized")
+        print(f"[HDFS] Base path: {self.hdfs_base_path}")
 
     def extract_country_from_filename(self, filename):
         """Extract country code from CSV filename (e.g., USvideos.csv -> US)"""
         match = re.match(r'([A-Z]{2})videos\.csv', os.path.basename(filename))
         return match.group(1) if match else 'UNKNOWN'
 
-    def load_csv_data(self, data_path):
-        """Load and process CSV files from data directory"""
-        print(f"📁 Loading CSV files from: {data_path}")
+    def load_csv_data_from_hdfs(self):
+        """Load and process CSV files from HDFS"""
+        print(f"📁 Loading CSV files from HDFS: {self.hdfs_base_path}/raw_data/")
         
         # Define schema for better performance
         schema = StructType([
@@ -72,22 +77,19 @@ class YouTubeTrendingProcessor:
             StructField("description", StringType(), True)
         ])
         
+        # Countries to process
+        countries = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']
         all_data = []
-        csv_files = [f for f in os.listdir(data_path) if f.endswith('videos.csv')]
         
-        if not csv_files:
-            print("[ERROR] No CSV files found in data directory!")
-            return None
+        for country in countries:
+            hdfs_path = f"{self.hdfs_base_path}/raw_data/{country}/{country}videos.csv"
             
-        for csv_file in csv_files:
-            country = self.extract_country_from_filename(csv_file)
-            file_path = os.path.join(data_path, csv_file)
-            
-            print(f"[PROCESSING] {csv_file} (Country: {country})")
+            print(f"[PROCESSING] Loading {country} data from HDFS: {hdfs_path}")
             
             try:
+                # Check if file exists in HDFS
                 df = self.spark.read.csv(
-                    file_path,
+                    hdfs_path,
                     header=True,
                     schema=schema,
                     timestampFormat="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
@@ -111,10 +113,12 @@ class YouTubeTrendingProcessor:
                 )
                 
                 all_data.append(df)
-                print(f"[OK] Loaded file: {csv_file}")
+                print(f"[OK] Loaded {country} data from HDFS")
                 
             except Exception as e:
-                print(f"[ERROR] Error processing {csv_file}: {str(e)}")
+                print(f"[WARN] Could not load {country} data from HDFS: {str(e)}")
+                print(f"[INFO] Falling back to local data for {country}")
+                # Fallback to local data if HDFS fails
                 continue
         
         if all_data:
@@ -123,9 +127,10 @@ class YouTubeTrendingProcessor:
             for df in all_data[1:]:
                 combined_df = combined_df.unionByName(df)
             
-            print(f"[SUCCESS] Total records loaded: {combined_df.count()}")
+            print(f"[SUCCESS] Total records loaded from HDFS: {combined_df.count()}")
             return combined_df
         
+        print("[ERROR] No data loaded from HDFS!")
         return None
 
     def save_raw_data_to_mongodb(self, df):
@@ -327,16 +332,22 @@ class YouTubeTrendingProcessor:
         
         return results
 
-    def run_full_pipeline(self, data_path):
-        """Run the complete data processing pipeline"""
+    def run_full_pipeline(self, fallback_data_path=None):
+        """Run the complete data processing pipeline with HDFS support"""
         try:
-            print("🚀 Starting YouTube Trending Data Processing Pipeline")
-            print("=" * 60)
+            print("🚀 Starting YouTube Trending Data Processing Pipeline (HDFS-enabled)")
+            print("=" * 70)
             
-            # Step 1: Load CSV data
-            df = self.load_csv_data(data_path)
+            # Step 1: Try to load CSV data from HDFS first
+            df = self.load_csv_data_from_hdfs()
+            
+            # Fallback to local data if HDFS fails and fallback path provided
+            if df is None and fallback_data_path:
+                print("[FALLBACK] Loading from local filesystem...")
+                df = self.load_csv_data(fallback_data_path)
+            
             if df is None:
-                print("[ERROR] Failed to load data. Exiting.")
+                print("[ERROR] Failed to load data from both HDFS and local. Exiting.")
                 return False
             
             # Step 2: Save raw data to MongoDB
@@ -348,10 +359,11 @@ class YouTubeTrendingProcessor:
             # Step 4: Generate wordcloud data
             wordcloud_results = self.generate_wordcloud_data(df)
             
-            print("=" * 60)
-            print("[SUCCESS] Pipeline completed successfully!")
+            print("=" * 70)
+            print("[SUCCESS] HDFS-enabled Pipeline completed successfully!")
             print(f"[RESULTS] Processed {len(trending_results)} trending analysis results")
             print(f"[WORDCLOUD] Generated {len(wordcloud_results)} wordcloud datasets")
+            print(f"[HDFS] Data source: {self.hdfs_base_path}/raw_data/")
             
             return True
             
@@ -365,20 +377,21 @@ class YouTubeTrendingProcessor:
             self.mongo_client.close()
 
 def main():
-    """Main execution function"""
-    if len(sys.argv) != 2:
-        print("Usage: spark-submit process_trending.py <data_directory>")
+    """Main execution function with HDFS support"""
+    if len(sys.argv) > 2:
+        print("Usage: spark-submit process_trending.py [fallback_data_directory]")
         print("Example: spark-submit process_trending.py /opt/bitnami/spark/data")
+        print("Note: Will try HDFS first, then fallback to local if provided")
         sys.exit(1)
     
-    data_path = sys.argv[1]
+    fallback_data_path = sys.argv[1] if len(sys.argv) == 2 else None
     
-    if not os.path.exists(data_path):
-        print(f"[ERROR] Data directory not found: {data_path}")
+    if fallback_data_path and not os.path.exists(fallback_data_path):
+        print(f"[ERROR] Fallback data directory not found: {fallback_data_path}")
         sys.exit(1)
     
     processor = YouTubeTrendingProcessor()
-    success = processor.run_full_pipeline(data_path)
+    success = processor.run_full_pipeline(fallback_data_path)
     
     sys.exit(0 if success else 1)
 

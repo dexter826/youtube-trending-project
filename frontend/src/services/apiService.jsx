@@ -162,6 +162,58 @@ const apiService = {
     const response = await api.get("/ml/evaluation");
     return response.data;
   },
+
+  // ============================================================================
+  // ADVANCED CLUSTERING API METHODS (STEP 3)
+  // ============================================================================
+
+  // Get advanced clustering statistics
+  async getAdvancedClusteringStatistics() {
+    const response = await api.get("/advanced-clustering/statistics");
+    return response.data;
+  },
+
+  // Train advanced clustering models
+  async trainAdvancedClustering() {
+    const response = await api.post("/advanced-clustering/train");
+    return response.data;
+  },
+
+  // Get behavioral cluster prediction
+  async getBehavioralClustering(videoData) {
+    const response = await api.post("/advanced-clustering/behavioral", videoData);
+    return response.data;
+  },
+
+  // Get content cluster prediction
+  async getContentClustering(videoData) {
+    const response = await api.post("/advanced-clustering/content", videoData);
+    return response.data;
+  },
+
+  // Get geographic cluster for country
+  async getGeographicClustering(country) {
+    const response = await api.get(`/advanced-clustering/geographic/${country}`);
+    return response.data;
+  },
+
+  // Get temporal cluster prediction
+  async getTemporalClustering(temporalData) {
+    const response = await api.post("/advanced-clustering/temporal", temporalData);
+    return response.data;
+  },
+
+  // Get comprehensive clustering analysis
+  async getComprehensiveClustering(videoData) {
+    const response = await api.post("/advanced-clustering/comprehensive", videoData);
+    return response.data;
+  },
+
+  // Get advanced clustering models info
+  async getAdvancedClusteringModels() {
+    const response = await api.get("/advanced-clustering/models");
+    return response.data;
+  },
 };
 
 // Export the apiService object with all methods, and also export the axios instance
