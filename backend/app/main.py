@@ -553,6 +553,55 @@ async def get_ml_model_info():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get model info: {str(e)}")
 
+@app.get("/ml/evaluation")
+async def get_model_evaluation():
+    """Get detailed model evaluation metrics"""
+    try:
+        # Get model metadata from MongoDB
+        metadata = db.ml_metadata.find_one({"type": "trending_prediction"})
+        
+        if not metadata:
+            raise HTTPException(
+                status_code=404,
+                detail="No model evaluation data found. Please train a model first."
+            )
+        
+        metrics = metadata.get('metrics', {})
+        
+        # Format evaluation data for frontend
+        evaluation_data = {
+            "success": True,
+            "training_date": metadata.get('created_at'),
+            "model_type": metrics.get('model_type', 'Unknown'),
+            "performance_metrics": {
+                "accuracy": metrics.get('accuracy', 0),
+                "precision": metrics.get('precision', 0),
+                "recall": metrics.get('recall', 0),
+                "f1_score": metrics.get('f1_score', 0),
+                "roc_auc": metrics.get('roc_auc', 0),
+                "cv_f1_mean": metrics.get('cv_f1_mean', 0),
+                "cv_f1_std": metrics.get('cv_f1_std', 0)
+            },
+            "confusion_matrix": {
+                "matrix": metrics.get('confusion_matrix', [[0, 0], [0, 0]]),
+                "labels": metrics.get('confusion_matrix_labels', ['Not Trending', 'Trending']),
+                "true_positives": metrics.get('true_positives', 0),
+                "true_negatives": metrics.get('true_negatives', 0),
+                "false_positives": metrics.get('false_positives', 0),
+                "false_negatives": metrics.get('false_negatives', 0),
+                "total_samples": metrics.get('total_samples', 0)
+            },
+            "feature_importance": metrics.get('feature_importance', []),
+            "total_features": metrics.get('total_features', 0)
+        }
+        
+        return JSONResponse(content=evaluation_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get model evaluation: {str(e)}")
+
 @app.get("/ml/health")
 async def ml_health_check():
     """Check ML service health"""

@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { BarChart3, Brain } from 'lucide-react';
+import { BarChart3, Brain, TrendingUp } from 'lucide-react';
 import Header from './components/Header';
 import FilterPanel from './components/FilterPanel';
 import Dashboard from './components/Dashboard';
 import MLPredictor from './components/MLPredictor';
+import ModelEvaluation from './components/ModelEvaluation';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
 import apiService from './services/apiService';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' or 'ml-predictor'
+  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics', 'ml-predictor', or 'model-evaluation'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [countries, setCountries] = useState([]);
@@ -149,11 +150,26 @@ function App() {
                   🤖 AI Trending Predictor
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('model-evaluation')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'model-evaluation'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  📈 Model Evaluation
+                </div>
+              </button>
             </nav>
           </div>
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'ml-predictor' && <MLPredictor />}
+        {activeTab === 'model-evaluation' && <ModelEvaluation />}
         {activeTab === 'analytics' && (
           <>
             {/* Filter Panel */}
@@ -185,14 +201,6 @@ function App() {
               </div>
             )}
           </>
-        )}
-
-        {/* ML Predictor Tab */}
-        {activeTab === 'ml-predictor' && (
-          <div className="space-y-8">
-            {/* Main ML Predictor - Full interface */}
-            <MLPredictor />
-          </div>
         )}
 
         {/* Analytics Tab Content */}

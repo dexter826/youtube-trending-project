@@ -164,29 +164,49 @@ class TrendingPredictor:
         y_pred = self.model.predict(X_test_scaled)
         y_pred_proba = self.model.predict_proba(X_test_scaled)[:, 1]
         
-        # Calculate metrics
+        # Calculate comprehensive metrics
         print("📊 Calculating performance metrics...")
+        cm = confusion_matrix(y_test, y_pred)
+        
         metrics = {
-            'accuracy': accuracy_score(y_test, y_pred),
-            'precision': precision_score(y_test, y_pred),
-            'recall': recall_score(y_test, y_pred),
-            'f1_score': f1_score(y_test, y_pred),
-            'roc_auc': roc_auc_score(y_test, y_pred_proba),
-            'confusion_matrix': confusion_matrix(y_test, y_pred).tolist()
+            'accuracy': float(accuracy_score(y_test, y_pred)),
+            'precision': float(precision_score(y_test, y_pred)),
+            'recall': float(recall_score(y_test, y_pred)),
+            'f1_score': float(f1_score(y_test, y_pred)),
+            'roc_auc': float(roc_auc_score(y_test, y_pred_proba)),
+            'confusion_matrix': cm.tolist(),
+            'confusion_matrix_labels': ['Not Trending', 'Trending'],
+            'true_positives': int(cm[1][1]),
+            'true_negatives': int(cm[0][0]),
+            'false_positives': int(cm[0][1]),
+            'false_negatives': int(cm[1][0]),
+            'total_samples': int(len(y_test)),
+            'training_date': datetime.now().isoformat(),
+            'model_type': 'Logistic Regression'
         }
         
         # Cross-validation
         print("   - Cross-validation...")
         cv_scores = cross_val_score(self.model, X_train_scaled, y_train, cv=3, scoring='f1')
-        metrics['cv_f1_mean'] = cv_scores.mean()
-        metrics['cv_f1_std'] = cv_scores.std()
+        metrics['cv_f1_mean'] = float(cv_scores.mean())
+        metrics['cv_f1_std'] = float(cv_scores.std())
         
         # Feature importance (using coefficients)
         feature_importance = pd.DataFrame({
             'feature': X.columns,
             'importance': abs(self.model.coef_[0])
         }).sort_values('importance', ascending=False)
-        metrics['feature_importance'] = feature_importance.head(10).to_dict('records')
+        
+        # Convert to serializable format
+        top_features = []
+        for _, row in feature_importance.head(10).iterrows():
+            top_features.append({
+                'feature': str(row['feature']),
+                'importance': float(row['importance'])
+            })
+        
+        metrics['feature_importance'] = top_features
+        metrics['total_features'] = int(len(X.columns))
         
         # Store results
         self.trained_model = self.model
@@ -218,8 +238,8 @@ class TrendingPredictor:
         """Save trained model and metadata"""
         print("💾 Saving model to disk...")
         
-        # Create models directory
-        models_dir = "saved_models"
+        # Create models directory - use parent spark directory
+        models_dir = os.path.join("..", "saved_models")
         os.makedirs(models_dir, exist_ok=True)
         
         # Save model files

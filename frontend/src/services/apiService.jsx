@@ -150,6 +150,12 @@ const apiService = {
   async getMLHealth() {
     const response = await api.get('/ml/health');
     return response.data;
+  },
+
+  // Get model evaluation metrics
+  async getModelEvaluation() {
+    const response = await api.get('/ml/evaluation');
+    return response.data;
   }
 };
 
