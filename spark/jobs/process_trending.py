@@ -6,10 +6,8 @@ Description: Process YouTube trending videos CSV data and store results in Mongo
 
 import os
 import sys
-from datetime import datetime, timedelta
 import re
-from collections import Counter
-import pandas as pd
+from datetime import datetime, timedelta
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
@@ -18,7 +16,7 @@ import pymongo
 from pymongo import MongoClient
 
 # MongoDB connection settings
-MONGO_URI = "mongodb://localhost:27017/"
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 DB_NAME = "youtube_trending"
 
 class YouTubeTrendingProcessor:
@@ -113,17 +111,17 @@ class YouTubeTrendingProcessor:
                 )
                 
                 all_data.append(df)
-                print(f"[OK] Loaded {df.count()} records from {csv_file}")
+                print(f"[OK] Loaded file: {csv_file}")
                 
             except Exception as e:
                 print(f"[ERROR] Error processing {csv_file}: {str(e)}")
                 continue
         
         if all_data:
-            # Union all dataframes
+            # Union all dataframes (by column name)
             combined_df = all_data[0]
             for df in all_data[1:]:
-                combined_df = combined_df.union(df)
+                combined_df = combined_df.unionByName(df)
             
             print(f"[SUCCESS] Total records loaded: {combined_df.count()}")
             return combined_df
@@ -134,27 +132,37 @@ class YouTubeTrendingProcessor:
         """Save raw data to MongoDB for API access"""
         print("💾 Saving raw data to MongoDB...")
         
-        # Clear existing raw data
+        # Clear existing raw data (demo behavior)
         self.db.raw_videos.delete_many({})
         
-        # Convert to Pandas and save to MongoDB
-        pandas_df = df.toPandas()
+        # Stream insert in batches to avoid driver OOM
+        batch = []
+        batch_size = 5000
+        total = 0
         
-        # Convert to dict and insert
-        records = pandas_df.to_dict('records')
+        def normalize_record(row_dict):
+            for k, v in list(row_dict.items()):
+                # Normalize NaN to None
+                if isinstance(v, float) and v != v:
+                    row_dict[k] = None
+                # Convert trending_date_parsed to string
+                if k == 'trending_date_parsed' and v is not None:
+                    row_dict[k] = v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else str(v)
+            return row_dict
         
-        # Handle NaN values and datetime conversion
-        for record in records:
-            for key, value in record.items():
-                if pd.isna(value):
-                    record[key] = None
-                elif key == 'trending_date_parsed' and value is not None:
-                    # Convert datetime.date to string for MongoDB
-                    record[key] = value.strftime('%Y-%m-%d') if hasattr(value, 'strftime') else str(value)
+        for row in df.toLocalIterator():
+            rec = normalize_record(row.asDict(recursive=True))
+            batch.append(rec)
+            if len(batch) >= batch_size:
+                self.db.raw_videos.insert_many(batch)
+                total += len(batch)
+                batch = []
         
-        if records:
-            self.db.raw_videos.insert_many(records)
-            print(f"[OK] Saved {len(records)} raw records to MongoDB")
+        if batch:
+            self.db.raw_videos.insert_many(batch)
+            total += len(batch)
+        
+        print(f"[OK] Saved {total} raw records to MongoDB")
 
     def process_trending_analysis(self, df):
         """Process trending analysis by country and date"""
@@ -163,9 +171,7 @@ class YouTubeTrendingProcessor:
         results = []
         
         # Get unique countries and dates
-        countries_dates = df.select("country", "trending_date_parsed") \
-                           .distinct() \
-                           .collect()
+        countries_dates = df.select("country", "trending_date_parsed").distinct().collect()
         
         for row in countries_dates:
             country = row.country
@@ -244,8 +250,6 @@ class YouTubeTrendingProcessor:
         """Generate wordcloud data from video titles"""
         print("[WORDCLOUD] Generating wordcloud data...")
         
-        import pandas as pd
-        
         results = []
         
         # Get unique countries and dates
@@ -278,29 +282,29 @@ class YouTubeTrendingProcessor:
                 (col("trending_date_parsed") == date)
             )
             
-            # Get all titles
-            titles = filtered_df.select("title").collect()
-            
-            # Process titles to extract words
-            all_words = []
-            for title_row in titles:
-                if title_row.title:
-                    # Clean title: remove special characters, convert to lowercase
-                    clean_title = re.sub(r'[^\w\s]', ' ', title_row.title.lower())
-                    words = clean_title.split()
-                    
-                    # Filter out stop words and short words
-                    filtered_words = [
-                        word for word in words 
-                        if len(word) > 2 and word not in stop_words
-                    ]
-                    all_words.extend(filtered_words)
-            
-            # Count word frequencies
-            word_counts = Counter(all_words)
-            
-            # Get top 50 words
-            top_words = word_counts.most_common(50)
+            # Build word frequencies using Spark (avoid driver-heavy processing)
+            stop_words_list = list(stop_words)
+            words_df = (
+                filtered_df
+                .select("title")
+                .where(col("title").isNotNull())
+                # Replace non-letter/digit with space, lowercase
+                .select(regexp_replace(lower(col("title")), r"[^\p{L}0-9\s]", " ").alias("title_clean"))
+                # Collapse multiple spaces
+                .select(regexp_replace(col("title_clean"), r"\s+", " ").alias("title_clean"))
+                # Split into words
+                .select(split(col("title_clean"), r"\s").alias("words"))
+                .select(explode(col("words")).alias("word"))
+                # Trim and filter out empty/non-alphanumeric tokens
+                .select(trim(col("word")).alias("word"))
+                .filter((col("word") != "") & (length(col("word")) > 2))
+                # Keep only unicode letters/digits
+                .filter(col("word").rlike(r"^[\p{L}0-9]+$"))
+                # Remove stop words
+                .filter(~col("word").isin(stop_words_list))
+            )
+            counts_df = words_df.groupBy("word").count().orderBy(col("count").desc()).limit(50)
+            top_words = [(r['word'], r['count']) for r in counts_df.collect()]
             
             # Prepare wordcloud data
             wordcloud_data = {

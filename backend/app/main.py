@@ -28,9 +28,13 @@ app = FastAPI(
 )
 
 # CORS middleware for React frontend
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()] if allowed_origins_env else default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,7 +60,7 @@ async def startup_event():
     """Initialize API on startup"""
     try:
         # Test MongoDB connection
-        client.admin.command('ismaster')
+        client.admin.command({'ping': 1})
         print("✅ MongoDB connection successful")
         
         # Initialize ML service
@@ -98,7 +102,7 @@ async def health_check():
     """Detailed health check"""
     try:
         # Check MongoDB connection
-        client.admin.command('ismaster')
+        client.admin.command({'ping': 1})
         
         # Check data availability
         countries = list(db.trending_results.distinct("country"))
@@ -408,7 +412,7 @@ async def get_video_details(video_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch video details: {str(e)}")
 
-@app.get("/categories")
+@app.get("/categories/stats")
 async def get_categories_stats(country: Optional[str] = None):
     """Get video categories statistics"""
     try:

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # MongoDB Database
@@ -10,6 +10,7 @@ services:
       - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: youtube_trending
+      MONGO_URI: mongodb://mongodb:27017/
     volumes:
       - mongodb_data:/data/db
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
@@ -37,6 +38,7 @@ services:
     container_name: youtube-spark-master
     environment:
       - SPARK_MODE=master
+      - MONGO_URI=mongodb://mongodb:27017/
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
@@ -59,6 +61,7 @@ services:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=2G
       - SPARK_WORKER_CORES=2
+      - MONGO_URI=mongodb://mongodb:27017/
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no

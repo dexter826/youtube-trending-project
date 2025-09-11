@@ -43,7 +43,10 @@ class MLPredictionService:
                 return False
             
             # Load single model (updated structure)
-            models_dir = r"c:\BigData\youtube-trending-project\spark\saved_models"
+            # Resolve models directory: ENV MODELS_DIR or default to <repo_root>/spark/saved_models
+            repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            models_dir = os.getenv("MODELS_DIR", os.path.join(repo_root, "spark", "saved_models"))
+            models_loaded = 0
             model_path = os.path.join(models_dir, "trending_predictor.pkl")
             
             if os.path.exists(model_path):
@@ -364,17 +367,28 @@ class MLPredictionService:
                 'total_models': len(self.models)
             }
             
-            # Get performance metrics
-            for model_name, model_data in metadata.get('models', {}).items():
-                if 'metrics' in model_data:
-                    metrics = model_data['metrics']
-                    model_info['models_performance'][model_name] = {
-                        'accuracy': round(metrics.get('accuracy', 0), 4),
-                        'f1_score': round(metrics.get('f1_score', 0), 4),
-                        'precision': round(metrics.get('precision', 0), 4),
-                        'recall': round(metrics.get('recall', 0), 4),
-                        'roc_auc': round(metrics.get('roc_auc', 0), 4)
-                    }
+            # Prefer flat 'metrics' (as saved by current training pipeline)
+            flat_metrics = metadata.get('metrics')
+            if flat_metrics:
+                model_info['models_performance']['logistic'] = {
+                    'accuracy': round(flat_metrics.get('accuracy', 0), 4),
+                    'f1_score': round(flat_metrics.get('f1_score', 0), 4),
+                    'precision': round(flat_metrics.get('precision', 0), 4),
+                    'recall': round(flat_metrics.get('recall', 0), 4),
+                    'roc_auc': round(flat_metrics.get('roc_auc', 0), 4)
+                }
+            else:
+                # Fallback to legacy structure with 'models'
+                for model_name, model_data in metadata.get('models', {}).items():
+                    if 'metrics' in model_data:
+                        metrics = model_data['metrics']
+                        model_info['models_performance'][model_name] = {
+                            'accuracy': round(metrics.get('accuracy', 0), 4),
+                            'f1_score': round(metrics.get('f1_score', 0), 4),
+                            'precision': round(metrics.get('precision', 0), 4),
+                            'recall': round(metrics.get('recall', 0), 4),
+                            'roc_auc': round(metrics.get('roc_auc', 0), 4)
+                        }
             
             return model_info
             

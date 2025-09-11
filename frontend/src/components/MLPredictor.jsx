@@ -218,116 +218,135 @@ const MLPredictor = () => {
 
         {/* Advanced fields - Always visible now */}
         <div className="space-y-4 border-t pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Lượt không thích
-                </label>
-                <input
-                  type="number"
-                  value={videoData.dislikes}
-                  onChange={(e) =>
-                    handleInputChange("dislikes", parseInt(e.target.value) || 0)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Thời gian đăng
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    value={videoData.publish_time ? videoData.publish_time.slice(0, 10) : ""}
-                    onChange={(e) => {
-                      const dateValue = e.target.value;
-                      if (dateValue) {
-                        const currentDate = videoData.publish_time ? new Date(videoData.publish_time) : new Date();
-                        const hours = String(currentDate.getUTCHours()).padStart(2, '0');
-                        const minutes = String(currentDate.getUTCMinutes()).padStart(2, '0');
-                        const newDateTime = `${dateValue}T${hours}:${minutes}:00.000Z`;
-                        handleInputChange("publish_time", newDateTime);
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                    placeholder="YYYY-MM-DD"
-                  />
-                  <input
-                    type="time"
-                    value={videoData.publish_time ? videoData.publish_time.slice(11, 16) : ""}
-                    onChange={(e) => {
-                      const timeValue = e.target.value;
-                      if (timeValue) {
-                        const currentDate = videoData.publish_time ? videoData.publish_time.slice(0, 10) : new Date().toISOString().slice(0, 10);
-                        const newDateTime = `${currentDate}T${timeValue}:00.000Z`;
-                        handleInputChange("publish_time", newDateTime);
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                    placeholder="HH:MM (24h)"
-                  />
-                </div>
-                <small className="text-gray-500 text-xs mt-1">
-                  Format: YYYY-MM-DD và HH:MM (24 giờ)
-                </small>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên kênh *
-                </label>
-                <input
-                  type="text"
-                  value={videoData.channel_title}
-                  onChange={(e) => handleInputChange("channel_title", e.target.value)}
-                  placeholder="Nhập tên channel..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div></div>
-            </div>
-
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags (phân cách bằng |)
+                Lượt không thích
               </label>
               <input
-                type="text"
-                value={videoData.tags}
-                onChange={(e) => handleInputChange("tags", e.target.value)}
-                placeholder="tag1|tag2|tag3"
+                type="number"
+                value={videoData.dislikes}
+                onChange={(e) =>
+                  handleInputChange("dislikes", parseInt(e.target.value) || 0)
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
             </div>
-
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={videoData.comments_disabled}
-                  onChange={(e) =>
-                    handleInputChange("comments_disabled", e.target.checked)
-                  }
-                  className="mr-2"
-                />
-                Tắt bình luận
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Thời gian đăng
               </label>
-              <label className="flex items-center">
+              <div className="grid grid-cols-2 gap-2">
                 <input
-                  type="checkbox"
-                  checked={videoData.ratings_disabled}
-                  onChange={(e) =>
-                    handleInputChange("ratings_disabled", e.target.checked)
+                  type="date"
+                  value={
+                    videoData.publish_time
+                      ? videoData.publish_time.slice(0, 10)
+                      : ""
                   }
-                  className="mr-2"
+                  onChange={(e) => {
+                    const dateValue = e.target.value;
+                    if (dateValue) {
+                      const currentDate = videoData.publish_time
+                        ? new Date(videoData.publish_time)
+                        : new Date();
+                      const hours = String(currentDate.getUTCHours()).padStart(
+                        2,
+                        "0"
+                      );
+                      const minutes = String(
+                        currentDate.getUTCMinutes()
+                      ).padStart(2, "0");
+                      const newDateTime = `${dateValue}T${hours}:${minutes}:00.000Z`;
+                      handleInputChange("publish_time", newDateTime);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  placeholder="YYYY-MM-DD"
                 />
-                Tắt đánh giá
-              </label>
+                <input
+                  type="time"
+                  value={
+                    videoData.publish_time
+                      ? videoData.publish_time.slice(11, 16)
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const timeValue = e.target.value;
+                    if (timeValue) {
+                      const currentDate = videoData.publish_time
+                        ? videoData.publish_time.slice(0, 10)
+                        : new Date().toISOString().slice(0, 10);
+                      const newDateTime = `${currentDate}T${timeValue}:00.000Z`;
+                      handleInputChange("publish_time", newDateTime);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  placeholder="HH:MM (24h)"
+                />
+              </div>
+              <small className="text-gray-500 text-xs mt-1">
+                Format: YYYY-MM-DD và HH:MM (24 giờ)
+              </small>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tên kênh *
+              </label>
+              <input
+                type="text"
+                value={videoData.channel_title}
+                onChange={(e) =>
+                  handleInputChange("channel_title", e.target.value)
+                }
+                placeholder="Nhập tên channel..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div></div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tags (phân cách bằng |)
+            </label>
+            <input
+              type="text"
+              value={videoData.tags}
+              onChange={(e) => handleInputChange("tags", e.target.value)}
+              placeholder="tag1|tag2|tag3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+
+          <div className="flex gap-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={videoData.comments_disabled}
+                onChange={(e) =>
+                  handleInputChange("comments_disabled", e.target.checked)
+                }
+                className="mr-2"
+              />
+              Tắt bình luận
+            </label>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={videoData.ratings_disabled}
+                onChange={(e) =>
+                  handleInputChange("ratings_disabled", e.target.checked)
+                }
+                className="mr-2"
+              />
+              Tắt đánh giá
+            </label>
+          </div>
+        </div>
       </div>
 
       {/* Predict Button */}
@@ -371,9 +390,9 @@ const MLPredictor = () => {
                     prediction.prediction?.trending_probability
                   )}`}
                 >
-                  {(
-                    prediction.prediction?.trending_probability * 100
-                  ).toFixed(1)}
+                  {(prediction.prediction?.trending_probability * 100).toFixed(
+                    1
+                  )}
                   %
                 </span>
               </div>
@@ -390,26 +409,6 @@ const MLPredictor = () => {
                 </span>
               </div>
             </div>
-
-            {/* Recommendations */}
-            {prediction.advice && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h5 className="font-medium text-gray-900 mb-2">
-                  💡 Gợi ý cải thiện:
-                </h5>
-                <ul className="space-y-1">
-                  {prediction.advice.map((advice, index) => (
-                    <li
-                      key={index}
-                      className="text-sm text-gray-600 flex items-start gap-2"
-                    >
-                      <span className="text-purple-500">•</span>
-                      {advice}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
 
             {prediction.recommendation?.recommendations && (
               <div className="mt-4 pt-4 border-t border-gray-200">
