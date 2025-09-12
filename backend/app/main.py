@@ -17,6 +17,33 @@ import json
 # Import ML services
 from .ml_service import get_ml_service, initialize_ml_service
 
+# Load category mappings
+CATEGORY_MAPPINGS = {}
+
+def load_category_mappings():
+    """Load category mappings from JSON files"""
+    global CATEGORY_MAPPINGS
+    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
+    
+    for filename in os.listdir(data_dir):
+        if filename.endswith('_category_id.json'):
+            country = filename.split('_')[0].upper()
+            filepath = os.path.join(data_dir, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    mapping = {}
+                    for item in data.get('items', []):
+                        cat_id = int(item['id'])
+                        title = item['snippet']['title']
+                        mapping[cat_id] = title
+                    CATEGORY_MAPPINGS[country] = mapping
+            except Exception as e:
+                print(f"Error loading {filename}: {e}")
+
+# Load mappings on startup
+load_category_mappings()
+
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 DB_NAME = "youtube_trending"
@@ -259,6 +286,22 @@ async def get_trending_videos(
         pipeline.append({"$limit": limit})
         
         results = list(db.trending_results.aggregate(pipeline))
+        
+        # Add category_title and youtube_link
+        for video in results:
+            country_code = video.get('country', 'US').upper()
+            cat_id = video.get('category_id')
+            if country_code in CATEGORY_MAPPINGS and cat_id in CATEGORY_MAPPINGS[country_code]:
+                video['category_title'] = CATEGORY_MAPPINGS[country_code][cat_id]
+            else:
+                video['category_title'] = 'Unknown'
+            
+            # Add YouTube link
+            video_id = video.get('video_id')
+            if video_id:
+                video['youtube_link'] = f"https://www.youtube.com/watch?v={video_id}"
+            else:
+                video['youtube_link'] = None
         
         return {
             "videos": results,

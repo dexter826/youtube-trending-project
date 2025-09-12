@@ -140,9 +140,9 @@ const PredictionPage = () => {
           {result.prediction && (
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Kết quả:</span>
-              <span className={`text-lg font-bold text-${color}-600`}>
+              <span className={`text-lg font-bold text-${color}-600 break-words max-w-xs`}>
                 {typeof result.prediction === 'object' 
-                  ? JSON.stringify(result.prediction)
+                  ? JSON.stringify(result.prediction, null, 2)
                   : result.prediction
                 }
               </span>

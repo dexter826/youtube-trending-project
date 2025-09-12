@@ -21,7 +21,8 @@ import {
   MessageCircle,
   TrendingUp,
   Calendar,
-  Globe
+  Globe,
+  Play
 } from 'lucide-react';
 import { useApi } from '../context/ApiContext';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -331,6 +332,9 @@ const TrendingAnalysis = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Danh mục
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Xem Video
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -357,6 +361,21 @@ const TrendingAnalysis = () => {
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                       {video.category_title || 'Unknown'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {video.youtube_link ? (
+                      <a 
+                        href={video.youtube_link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                      >
+                        <Play className="w-4 h-4 mr-1" />
+                        Xem
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
                   </td>
                 </tr>
               ))}
