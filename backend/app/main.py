@@ -1,6 +1,6 @@
 """
 FastAPI Backend for YouTube Trending Analytics
-Description: REST API serving processed YouTube data using distributed Spark MLlib
+Description: Clean REST API serving processed YouTube data with simple ML
 """
 
 from fastapi import FastAPI, HTTPException, Query
@@ -15,17 +15,15 @@ from bson import ObjectId
 import json
 
 # Import ML services
-from .ml_api import get_mllib_service, initialize_mllib_service
-from .clustering_api import get_advanced_clustering_service
-from .regression_api import get_regression_service, ViewPredictionRequest
+from .ml_service import get_ml_service, initialize_ml_service
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 DB_NAME = "youtube_trending"
 
 app = FastAPI(
-    title="YouTube Trending Analytics API - Spark MLlib",
-    description="Big Data API for YouTube trending videos analysis using Spark MLlib",
+    title="YouTube Trending Analytics API",
+    description="Big Data API for YouTube trending videos analysis with ML predictions",
     version="2.0.0"
 )
 
@@ -51,29 +49,33 @@ class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, ObjectId):
             return str(obj)
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        if isinstance(obj, date):
+        elif isinstance(obj, (datetime, date)):
             return obj.isoformat()
         return super().default(obj)
 
+# Pydantic models for ML predictions
+class VideoMLInput(BaseModel):
+    title: str
+    views: int = 0
+    likes: int = 0
+    dislikes: int = 0
+    comment_count: int = 0
+    category_id: int = 0
+    tags: str = ""
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize API on startup"""
+    """Initialize services on startup"""
     try:
         # Test MongoDB connection
         client.admin.command({'ping': 1})
         print("✅ MongoDB connection successful")
         
-        # Initialize MLlib services
-        mllib_service = initialize_mllib_service()
-        advanced_clustering_service = get_advanced_clustering_service()
-        regression_service = get_regression_service()
-        print("🤖 Spark MLlib service initialized")
-        print("🧠 Advanced clustering service initialized")
-        print("📈 Regression analysis service initialized")
+        # Initialize ML services
+        ml_service = initialize_ml_service()
+        print("🤖 ML service initialized")
         
-        # Check if data exists
+        # Database statistics
         raw_count = db.raw_videos.count_documents({})
         trending_count = db.trending_results.count_documents({})
         wordcloud_count = db.wordcloud_data.count_documents({})
@@ -86,7 +88,7 @@ async def startup_event():
         print(f"   - ML features: {ml_features_count}")
         
     except Exception as e:
-        print(f"❌ MongoDB connection failed: {e}")
+        print(f"❌ Startup failed: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -94,12 +96,16 @@ async def shutdown_event():
     client.close()
     print("👋 MongoDB connection closed")
 
+# ============================================================================
+# HEALTH & STATUS ENDPOINTS
+# ============================================================================
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
     return {
-        "message": "YouTube Trending Analytics API - Spark MLlib",
-        "framework": "Spark MLlib",
+        "message": "YouTube Trending Analytics API",
+        "framework": "Machine Learning with scikit-learn",
         "big_data_compliant": True,
         "status": "running",
         "timestamp": datetime.now().isoformat()
@@ -109,779 +115,283 @@ async def root():
 async def health_check():
     """Detailed health check"""
     try:
-        # Check MongoDB connection
-        client.admin.command({'ping': 1})
+        # Test database connection
+        db_status = "healthy"
+        try:
+            client.admin.command({'ping': 1})
+        except:
+            db_status = "unhealthy"
         
-        # Check data availability
-        countries = list(db.trending_results.distinct("country"))
-        dates = list(db.trending_results.distinct("date"))
+        # Test ML service
+        ml_service = get_ml_service()
+        ml_status = "trained" if ml_service.is_trained else "untrained"
         
         return {
             "status": "healthy",
-            "mongodb": "connected",
-            "framework": "Spark MLlib",
-            "big_data_compliant": True,
-            "data": {
-                "countries_available": countries,
-                "dates_available": sorted(dates) if dates else [],
-                "total_countries": len(countries),
-                "total_dates": len(dates)
-            },
+            "database": db_status,
+            "ml_service": ml_status,
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
+# ============================================================================
+# DATA ENDPOINTS
+# ============================================================================
+
 @app.get("/countries")
-async def get_available_countries():
+async def get_countries():
     """Get list of available countries"""
     try:
         countries = list(db.trending_results.distinct("country"))
-        return {
-            "countries": sorted(countries),
-            "count": len(countries)
-        }
+        return {"countries": sorted(countries)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch countries: {str(e)}")
 
-@app.get("/dates")
-async def get_available_dates(country: Optional[str] = None):
-    """Get list of available dates, optionally filtered by country"""
+@app.get("/categories")
+async def get_categories():
+    """Get list of video categories"""
+    try:
+        categories = list(db.trending_results.distinct("category_title"))
+        return {"categories": sorted([cat for cat in categories if cat])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch categories: {str(e)}")
+
+@app.get("/trending")
+async def get_trending_videos(
+    country: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = Query(100, le=1000)
+):
+    """Get trending videos with filters"""
     try:
         filter_query = {}
+        
         if country:
             filter_query["country"] = country
-            
-        dates = list(db.trending_results.distinct("date", filter_query))
-        return {
-            "dates": sorted(dates) if dates else [],
-            "count": len(dates),
-            "country": country
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch dates: {str(e)}")
-
-@app.get("/trending/{country}")
-async def get_trending_by_country(
-    country: str,
-    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
-    limit: int = Query(10, ge=1, le=50, description="Number of results to return")
-):
-    """Get trending videos for a specific country"""
-    try:
-        filter_query = {"country": country.upper()}
+        if category:
+            filter_query["category_title"] = category
         
-        if date:
-            filter_query["date"] = date
-        
-        # Get trending results
         results = list(db.trending_results.find(
             filter_query,
             {"_id": 0}
-        ).limit(limit))
-        
-        if not results:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No trending data found for country: {country}" + (f" on date: {date}" if date else "")
-            )
+        ).sort("views", -1).limit(limit))
         
         return {
-            "country": country.upper(),
-            "date": date,
-            "results": results,
-            "count": len(results)
+            "videos": results,
+            "count": len(results),
+            "filters": {"country": country, "category": category}
         }
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch trending data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch trending videos: {str(e)}")
 
-@app.get("/statistics/{country}")
-async def get_statistics_by_country(
-    country: str,
-    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format")
-):
-    """Get statistics for a specific country"""
+@app.get("/statistics")
+async def get_statistics(country: Optional[str] = None):
+    """Get trending statistics"""
     try:
-        filter_query = {"country": country.upper()}
+        filter_query = {"country": country} if country else {}
         
-        if date:
-            filter_query["date"] = date
+        pipeline = [
+            {"$match": filter_query},
+            {"$group": {
+                "_id": None,
+                "total_videos": {"$sum": 1},
+                "avg_views": {"$avg": "$views"},
+                "avg_likes": {"$avg": "$likes"},
+                "avg_comments": {"$avg": "$comment_count"},
+                "max_views": {"$max": "$views"}
+            }}
+        ]
         
-        # Get statistics from trending results
-        result = db.trending_results.find_one(filter_query, {"_id": 0, "statistics": 1})
-        
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No statistics found for country: {country}" + (f" on date: {date}" if date else "")
-            )
-        
-        return {
-            "country": country.upper(),
-            "date": date,
-            "statistics": result.get("statistics", {})
-        }
-    except HTTPException:
-        raise
+        result = list(db.trending_results.aggregate(pipeline))
+        if result:
+            stats = result[0]
+            del stats["_id"]
+            return {"statistics": stats, "country": country}
+        else:
+            return {"statistics": {}, "country": country}
+            
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch statistics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
 
-@app.get("/wordcloud/{country}")
-async def get_wordcloud_data(
-    country: str,
-    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format")
-):
-    """Get wordcloud data for a specific country"""
+@app.get("/wordcloud")
+async def get_wordcloud_data(country: Optional[str] = None):
+    """Get word cloud data"""
     try:
-        filter_query = {"country": country.upper()}
+        filter_query = {"country": country} if country else {}
         
-        if date:
-            filter_query["date"] = date
-        
-        # Get wordcloud data
         result = db.wordcloud_data.find_one(filter_query, {"_id": 0})
-        
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No wordcloud data found for country: {country}" + (f" on date: {date}" if date else "")
-            )
-        
-        return {
-            "country": country.upper(),
-            "date": date,
-            "wordcloud": result
-        }
-    except HTTPException:
-        raise
+        if result:
+            return result
+        else:
+            return {"wordcloud_data": []}
+            
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch wordcloud data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get wordcloud data: {str(e)}")
 
-@app.get("/videos")
-async def get_videos(
-    country: Optional[str] = Query(None, description="Filter by country"),
-    category_id: Optional[int] = Query(None, description="Filter by category ID"),
-    limit: int = Query(100, ge=1, le=1000, description="Number of videos to return"),
-    skip: int = Query(0, ge=0, description="Number of videos to skip")
-):
-    """Get raw video data with optional filtering"""
+# ============================================================================
+# MACHINE LEARNING ENDPOINTS
+# ============================================================================
+
+@app.get("/ml/health")
+async def ml_health():
+    """ML service health check"""
     try:
-        filter_query = {}
+        ml_service = get_ml_service()
+        return ml_service.get_model_info()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ML health check failed: {str(e)}")
+
+@app.post("/ml/train")
+async def train_ml_models():
+    """Train ML models using database data"""
+    try:
+        ml_service = get_ml_service()
         
-        if country:
-            filter_query["country"] = country.upper()
+        # Check training data availability
+        training_data_count = db.ml_features.count_documents({})
+        if training_data_count < 1000:
+            raise HTTPException(status_code=400, detail=f"Insufficient training data: {training_data_count} records")
         
-        if category_id is not None:
-            filter_query["category_id"] = category_id
+        # Train models
+        success = ml_service.train_models()
         
-        # Get videos from raw collection
-        videos = list(db.raw_videos.find(
-            filter_query,
-            {"_id": 0}
-        ).skip(skip).limit(limit))
-        
-        # Get total count for pagination
-        total_count = db.raw_videos.count_documents(filter_query)
-        
-        return {
-            "videos": videos,
-            "pagination": {
-                "total": total_count,
-                "limit": limit,
-                "skip": skip,
-                "current_page": (skip // limit) + 1,
-                "total_pages": (total_count + limit - 1) // limit
-            },
-            "filters": {
-                "country": country,
-                "category_id": category_id
+        if success:
+            return {
+                "status": "success",
+                "message": "ML models trained successfully",
+                "training_data_count": training_data_count,
+                "models": list(ml_service.models.keys())
             }
-        }
+        else:
+            raise HTTPException(status_code=500, detail="Training failed")
+            
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch videos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
 
-# ===============================
-# SPARK MLLIB ENDPOINTS ONLY
-# ===============================
-
-# MLlib Input Models
-class VideoMLlibInput(BaseModel):
-    title: str = "Sample Video"
-    views: int = 1000
-    likes: int = 50
-    dislikes: int = 5
-    comment_count: int = 20
-    category_id: int = 1
-    publish_hour: int = 12
-    tags: str = "sample,video"
-    comments_disabled: bool = False
-    ratings_disabled: bool = False
-    channel_title: str = "Sample Channel"
-
-@app.get("/mllib/health")
-async def mllib_health_check():
-    """Check Spark MLlib service health"""
+@app.post("/ml/predict")
+async def predict_trending(video_data: VideoMLInput):
+    """Predict if a video will be trending"""
     try:
-        mllib_service = get_mllib_service()
-        model_info = mllib_service.get_model_info()
-        
-        return {
-            "status": "ready" if mllib_service.is_loaded else "not_ready",
-            "framework": "Spark MLlib",
-            "loaded_models": model_info["loaded_models"],
-            "model_count": model_info["model_count"],
-            "spark_version": model_info["spark_version"],
-            "hdfs_path": model_info["hdfs_path"],
-            "big_data_compliant": True,
-            "distributed_ml": True
-        }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Spark MLlib service error: {str(e)}",
-            "framework": "Spark MLlib",
-            "big_data_compliant": False
-        }
-
-@app.post("/mllib/predict")
-async def mllib_predict_trending(video_data: VideoMLlibInput):
-    """Predict trending using Spark MLlib models"""
-    try:
-        mllib_service = get_mllib_service()
-        
-        # Use best performing model (random_forest preferred)
-        model_preference = ["random_forest", "gradient_boosting", "logistic_regression", "decision_tree"]
-        
-        available_models = list(mllib_service.models.keys())
-        selected_model = None
-        
-        for model in model_preference:
-            if model in available_models:
-                selected_model = model
-                break
-        
-        if not selected_model:
-            selected_model = available_models[0] if available_models else "logistic_regression"
+        ml_service = get_ml_service()
         
         # Convert to dict and add derived features
         video_dict = video_data.dict()
-        video_dict['title_length'] = len(video_dict['title'])
-        video_dict['tag_count'] = len(video_dict['tags'].split(',')) if video_dict['tags'] else 0
-        video_dict['like_ratio'] = video_dict['likes'] / max(video_dict['views'], 1)
-        video_dict['comment_ratio'] = video_dict['comment_count'] / max(video_dict['views'], 1)
-        video_dict['engagement_score'] = (video_dict['likes'] + video_dict['comment_count']) / max(video_dict['views'], 1)
         
-        result = mllib_service.predict_trending(video_dict)
+        result = ml_service.predict_trending(video_dict)
         
         return {
             "prediction": result,
             "input_data": video_dict,
-            "framework": "Spark MLlib",
-            "distributed": True,
-            "big_data_technology": True
+            "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MLlib prediction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
-@app.post("/mllib/clustering")
-async def mllib_clustering_analysis(videos_data: List[VideoMLlibInput]):
-    """Perform clustering analysis using Spark MLlib"""
+@app.post("/ml/predict-views")
+async def predict_views(video_data: VideoMLInput):
+    """Predict view count for a video"""
     try:
-        mllib_service = get_mllib_service()
+        ml_service = get_ml_service()
         
-        # Convert input data
-        videos_dict = []
-        for video in videos_data:
-            video_dict = video.dict()
-            video_dict['title_length'] = len(video_dict['title'])
-            video_dict['tag_count'] = len(video_dict['tags'].split(',')) if video_dict['tags'] else 0
-            video_dict['like_ratio'] = video_dict['likes'] / max(video_dict['views'], 1)
-            video_dict['comment_ratio'] = video_dict['comment_count'] / max(video_dict['views'], 1)
-            video_dict['engagement_score'] = (video_dict['likes'] + video_dict['comment_count']) / max(video_dict['views'], 1)
-            videos_dict.append(video_dict)
-        
-        result = mllib_service.get_clustering_analysis(videos_dict)
-        
-        return {
-            "clustering_analysis": result,
-            "framework": "Spark MLlib",
-            "distributed": True,
-            "video_count": len(videos_data),
-            "algorithms": ["K-Means", "Bisecting K-Means"]
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MLlib clustering failed: {str(e)}")
-
-@app.post("/mllib/predict-views")
-async def mllib_predict_views(video_data: VideoMLlibInput):
-    """Predict view count using Spark MLlib regression"""
-    try:
-        mllib_service = get_mllib_service()
-        
-        # Convert to dict and add derived features
         video_dict = video_data.dict()
-        video_dict['title_length'] = len(video_dict['title'])
-        video_dict['tag_count'] = len(video_dict['tags'].split(',')) if video_dict['tags'] else 0
-        video_dict['like_ratio'] = video_dict['likes'] / max(video_dict['views'], 1)
-        video_dict['comment_ratio'] = video_dict['comment_count'] / max(video_dict['views'], 1)
-        video_dict['engagement_score'] = (video_dict['likes'] + video_dict['comment_count']) / max(video_dict['views'], 1)
-        
-        result = mllib_service.predict_views(video_dict)
+        result = ml_service.predict_views(video_dict)
         
         return {
-            "view_prediction": result,
+            "prediction": result,
             "input_data": video_dict,
-            "framework": "Spark MLlib", 
-            "distributed": True,
-            "algorithm": "regression"
+            "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MLlib view prediction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Views prediction failed: {str(e)}")
 
-@app.get("/mllib/models")
-async def get_mllib_models():
-    """Get information about available Spark MLlib models"""
+@app.post("/ml/clustering")
+async def predict_cluster(video_data: VideoMLInput):
+    """Predict content cluster for a video"""
     try:
-        mllib_service = get_mllib_service()
-        model_info = mllib_service.get_model_info()
+        ml_service = get_ml_service()
         
-        # Get metadata from MongoDB
-        metadata = db.ml_metadata.find_one({"type": "spark_mllib_models"})
+        video_dict = video_data.dict()
+        result = ml_service.predict_cluster(video_dict)
         
         return {
-            "model_info": model_info,
-            "metadata": metadata,
-            "framework": "Spark MLlib",
-            "big_data_compliant": True,
-            "hdfs_storage": True,
-            "distributed_ml": True,
-            "algorithms": {
-                "classification": ["Logistic Regression", "Random Forest", "Decision Tree", "Gradient Boosting"],
-                "clustering": ["K-Means", "Bisecting K-Means"],
-                "regression": ["Linear Regression", "Random Forest Regression"]
-            }
+            "prediction": result,
+            "input_data": video_dict,
+            "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get MLlib models info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Clustering failed: {str(e)}")
 
 # ============================================================================
-# CLUSTERING ENDPOINTS 
+# DATA PROCESSING ENDPOINTS (Spark)
 # ============================================================================
 
-@app.post("/clustering/behavioral")
-async def behavioral_clustering(video_data: dict):
-    """Get behavioral cluster prediction for a video"""
+@app.post("/data/process")
+async def process_data():
+    """Process raw data using Spark (data processing only)"""
     try:
-        clustering_service = get_advanced_clustering_service()
-        result = clustering_service.get_behavioral_cluster(video_data)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Behavioral clustering failed: {str(e)}")
-
-@app.post("/clustering/content")
-async def content_clustering(video_data: dict):
-    """Get content cluster prediction for a video"""
-    try:
-        clustering_service = get_advanced_clustering_service()
-        result = clustering_service.get_content_cluster(video_data)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Content clustering failed: {str(e)}")
-
-@app.get("/clustering/geographic/{country}")
-async def geographic_clustering(country: str):
-    """Get geographic cluster for a country"""
-    try:
-        clustering_service = get_advanced_clustering_service()
-        result = clustering_service.get_geographic_cluster(country)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Geographic clustering failed: {str(e)}")
-
-@app.post("/clustering/temporal")
-async def temporal_clustering(temporal_data: dict):
-    """Get temporal cluster prediction"""
-    try:
-        clustering_service = get_advanced_clustering_service()
-        publish_time = temporal_data.get('publish_time', datetime.now().isoformat())
-        result = clustering_service.get_temporal_cluster(publish_time)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Temporal clustering failed: {str(e)}")
-
-@app.post("/clustering/comprehensive")
-async def comprehensive_clustering(video_data: dict):
-    """Get comprehensive clustering analysis for a video"""
-    try:
-        clustering_service = get_advanced_clustering_service()
-        result = clustering_service.get_comprehensive_clustering(video_data)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Comprehensive clustering failed: {str(e)}")
-
-@app.get("/clustering/statistics")
-async def clustering_statistics():
-    """Get clustering statistics and insights"""
-    try:
-        clustering_service = get_advanced_clustering_service()
-        result = clustering_service.get_clustering_statistics()
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get clustering statistics: {str(e)}")
-
-@app.post("/clustering/train")
-async def train_clustering():
-    """Train clustering models"""
-    try:
-        # Check training data
-        training_data_count = db.raw_videos.count_documents({})
-        if training_data_count == 0:
-            raise HTTPException(status_code=400, detail="No training data available")
-        
-        # Run clustering analysis
         import subprocess
         import sys
         
-        script_path = "c:/BigData/youtube-trending-project/spark/services/clustering_service.py"
-        result = subprocess.run([sys.executable, script_path], 
-                              capture_output=True, text=True, cwd="c:/BigData/youtube-trending-project")
+        # Check raw data availability
+        raw_data_count = db.raw_videos.count_documents({})
+        if raw_data_count == 0:
+            raise HTTPException(status_code=400, detail="No raw data available for processing")
+        
+        # Run Spark data processing job
+        script_path = "spark/jobs/process_trending.py"
+        result = subprocess.run(
+            [sys.executable, script_path], 
+            capture_output=True, 
+            text=True, 
+            cwd="c:/BigData/youtube-trending-project"
+        )
         
         if result.returncode == 0:
             return {
                 "status": "success",
-                "message": "Clustering models trained successfully",
-                "training_data_count": training_data_count,
-                "framework": "Spark MLlib",
-                "algorithms": [
-                    "Behavioral K-Means",
-                    "Behavioral Bisecting K-Means", 
-                    "Behavioral Gaussian Mixture",
-                    "Content Word2Vec + K-Means",
-                    "Geographic K-Means",
-                    "Temporal K-Means"
-                ],
-                "output": result.stdout
+                "message": "Data processing completed successfully",
+                "framework": "Apache Spark",
+                "input_records": raw_data_count,
+                "output": result.stdout[-500:] if result.stdout else ""  # Last 500 chars
             }
         else:
             return {
                 "status": "error",
-                "message": "Clustering training failed",
+                "message": "Data processing failed",
                 "error": result.stderr,
                 "output": result.stdout
             }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Clustering training failed: {str(e)}")
-
-@app.get("/clustering/models")
-async def get_clustering_models():
-    """Get information about available clustering models"""
-    try:
-        clustering_service = get_advanced_clustering_service()
-        
-        # Get clustering metadata
-        metadata = db.ml_metadata.find_one({"type": "advanced_clustering_analysis"})
-        
-        # Get clustering results summary
-        clustering_results = list(db.clustering_results.find({}))
-        
-        model_info = {
-            "available_models": list(clustering_service.loaded_models.keys()),
-            "total_models": len(clustering_service.loaded_models),
-            "last_training": metadata.get("created_at") if metadata else None,
-            "algorithms_used": metadata.get("algorithms_used") if metadata else {},
-            "clustering_types": ["behavioral", "content", "geographic", "temporal"],
-            "total_clustering_results": len(clustering_results),
-            "framework": "Spark MLlib"
-        }
-        
-        return {
-            "clustering_info": model_info,
-            "metadata": metadata,
-            "big_data_compliant": True,
-            "distributed_clustering": True,
-            "hdfs_storage": True
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get advanced clustering models info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Data processing failed: {str(e)}")
 
 # ============================================================================
-# SPARK OPTIMIZATION ENDPOINTS (STEP 4)
+# ADMINISTRATION ENDPOINTS
 # ============================================================================
 
-@app.post("/optimized/train-all")
-async def train_optimized_models():
-    """Train all models with Spark optimizations"""
+@app.get("/admin/database-stats")
+async def get_database_stats():
+    """Get detailed database statistics"""
     try:
-        import subprocess
-        import sys
+        collections = db.list_collection_names()
+        stats = {}
         
-        # Check training data
-        training_data_count = db.raw_videos.count_documents({})
-        if training_data_count == 0:
-            raise HTTPException(status_code=400, detail="No training data available")
-        
-        # Run optimized training
-        script_path = "c:/BigData/youtube-trending-project/spark/ml_models/optimized_mllib_service.py"
-        result = subprocess.run([sys.executable, script_path], 
-                              capture_output=True, text=True, 
-                              cwd="c:/BigData/youtube-trending-project")
-        
-        if result.returncode == 0:
-            return {
-                "status": "success",
-                "message": "Optimized models trained successfully",
-                "training_data_count": training_data_count,
-                "framework": "Spark MLlib Optimized",
-                "optimizations": [
-                    "Partitioned data loading",
-                    "Optimized caching strategy",
-                    "No collect() operations",
-                    "Pipeline-based training",
-                    "HDFS model storage"
-                ],
-                "output": result.stdout
-            }
-        else:
-            return {
-                "status": "error", 
-                "message": "Optimized training failed",
-                "error": result.stderr,
-                "output": result.stdout
-            }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Optimized training failed: {str(e)}")
-
-@app.get("/optimized/performance-metrics")
-async def get_performance_metrics():
-    """Get Spark performance metrics and optimizations"""
-    try:
-        # Get optimized model metadata
-        metadata = db.ml_metadata.find_one({"type": "spark_mllib_optimized_models"})
-        
-        # Performance metrics
-        performance_info = {
-            "optimizations_applied": [
-                "Adaptive Query Execution (AQE)",
-                "Dynamic partitioning", 
-                "Broadcast joins",
-                "Column pruning",
-                "Predicate pushdown",
-                "Kryo serialization",
-                "Memory-optimized storage"
-            ],
-            "data_optimizations": [
-                "Parquet file format",
-                "Snappy compression",
-                "Partitioned storage",
-                "Cached DataFrames",
-                "Vectorized operations"
-            ],
-            "ml_optimizations": [
-                "Pipeline-based training",
-                "No collect() operations",
-                "Distributed model training",
-                "HDFS model storage",
-                "Feature caching"
-            ],
-            "cluster_ready": True,
-            "hdfs_integrated": True,
-            "big_data_compliant": True
-        }
+        for collection in collections:
+            count = db[collection].count_documents({})
+            stats[collection] = count
         
         return {
-            "performance_metrics": performance_info,
-            "last_optimization": metadata.get("created_at") if metadata else None,
-            "total_optimized_models": metadata.get("total_models") if metadata else 0,
-            "framework": "Spark MLlib Optimized"
+            "collections": stats,
+            "total_collections": len(collections),
+            "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get performance metrics: {str(e)}")
-
-@app.get("/optimized/cluster-config")
-async def get_cluster_configuration():
-    """Get Spark cluster configuration for production deployment"""
-    try:
-        cluster_config = {
-            "spark_master": "spark://spark-master:7077",
-            "deployment_mode": "cluster",
-            "resource_allocation": {
-                "driver_memory": "8g",
-                "executor_memory": "6g", 
-                "executor_cores": "4",
-                "executor_instances": "3"
-            },
-            "optimization_settings": {
-                "adaptive_query_execution": True,
-                "dynamic_allocation": True,
-                "broadcast_threshold": "50MB",
-                "shuffle_partitions": "200"
-            },
-            "storage_configuration": {
-                "hdfs_replication": 2,
-                "compression": "snappy",
-                "file_format": "parquet"
-            },
-            "production_ready": True
-        }
-        
-        return {
-            "cluster_configuration": cluster_config,
-            "framework": "Spark MLlib Optimized",
-            "big_data_platform": True
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get cluster config: {str(e)}")
-
-# ================================
-# REGRESSION ANALYSIS ENDPOINTS 
-# ================================
-
-@app.post("/regression/train")
-async def train_regression_models():
-    """Train all regression models for view prediction and trend forecasting"""
-    try:
-        regression_service = get_regression_service()
-        view_results = regression_service.train_view_prediction_models()
-        trend_results = regression_service.train_trend_forecast_models()
-        
-        return {
-            'status': 'success',
-            'view_prediction_models': view_results,
-            'trend_forecast_models': trend_results,
-            'total_models_trained': len(view_results) + len(trend_results),
-            'training_completed_at': datetime.now().isoformat(),
-            'framework': 'Spark MLlib Regression',
-            'features': [
-                'Advanced view prediction',
-                'Time-series trend forecasting', 
-                'Multiple regression algorithms',
-                'HDFS model storage',
-                'Feature importance analysis'
-            ]
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Regression training failed: {str(e)}")
-
-@app.post("/regression/predict-views")
-async def predict_video_views(request: ViewPredictionRequest):
-    """Predict view count for a video based on its features"""
-    try:
-        regression_service = get_regression_service()
-        prediction = regression_service.predict_views(request)
-        
-        return {
-            'status': 'success',
-            'prediction': prediction,
-            'input_features': request.dict(),
-            'model_type': 'regression_analysis',
-            'timestamp': datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"View prediction failed: {str(e)}")
-
-@app.get("/regression/models")
-async def get_regression_models():
-    """Get information about trained regression models"""
-    try:
-        results = list(db.regression_results.find({}, {'_id': 0}).sort('timestamp', -1).limit(10))
-        
-        return {
-            'status': 'success',
-            'regression_models': results,
-            'total_results': len(results),
-            'model_types': ['view_prediction', 'trend_forecast'],
-            'algorithms': ['linear_regression', 'random_forest', 'gradient_boosting'],
-            'framework': 'Spark MLlib Regression'
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get regression models: {str(e)}")
-
-@app.get("/regression/performance")
-async def get_regression_performance():
-    """Get performance metrics of regression models"""
-    try:
-        # Get latest results
-        latest_view = db.regression_results.find_one(
-            {'type': 'view_prediction'}, 
-            sort=[('timestamp', -1)]
-        )
-        latest_trend = db.regression_results.find_one(
-            {'type': 'trend_forecast'}, 
-            sort=[('timestamp', -1)]
-        )
-        
-        return {
-            'status': 'success',
-            'view_prediction_performance': latest_view['results'] if latest_view else {},
-            'trend_forecast_performance': latest_trend['results'] if latest_trend else {},
-            'metrics_available': ['RMSE', 'MAE', 'R²', 'Feature Importance'],
-            'last_updated': latest_view['timestamp'] if latest_view else None,
-            'framework': 'Spark MLlib Regression Analysis'
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get regression performance: {str(e)}")
-
-@app.get("/regression/analysis")
-async def get_regression_analysis():
-    """Get comprehensive regression analysis results"""
-    try:
-        # Get all regression results
-        view_models = list(db.regression_results.find({'type': 'view_prediction'}).sort('timestamp', -1).limit(5))
-        trend_models = list(db.regression_results.find({'type': 'trend_forecast'}).sort('timestamp', -1).limit(5))
-        
-        # Calculate summary statistics
-        total_models = len(view_models) + len(trend_models)
-        best_view_model = None
-        best_trend_model = None
-        
-        if view_models:
-            best_view_model = max(view_models[0]['results'].items(), key=lambda x: x[1].get('r2', 0))
-        
-        if trend_models:
-            best_trend_model = max(trend_models[0]['results'].items(), key=lambda x: x[1].get('r2', 0))
-        
-        return {
-            'status': 'success',
-            'analysis_summary': {
-                'total_regression_models': total_models,
-                'view_prediction_models': len(view_models),
-                'trend_forecast_models': len(trend_models),
-                'best_view_model': best_view_model[0] if best_view_model else None,
-                'best_trend_model': best_trend_model[0] if best_trend_model else None
-            },
-            'recent_trainings': {
-                'view_prediction': view_models,
-                'trend_forecast': trend_models
-            },
-            'capabilities': [
-                'Video view count prediction',
-                'Trending forecast analysis',
-                'Feature importance ranking',
-                'Multi-algorithm comparison',
-                'Time-series modeling'
-            ],
-            'framework': 'Advanced Spark MLlib Regression',
-            'big_data_compliance': True
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get regression analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
