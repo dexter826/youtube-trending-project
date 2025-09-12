@@ -1,292 +1,376 @@
 """
 Machine Learning Service
-Description: AI predictions for YouTube trending analytics using scikit-learn
+Description: AI predictions using Spark MLlib models from HDFS
 """
 
-import math
-import numpy as np
 from typing import Dict, Any
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
 from fastapi import HTTPException
-import joblib
-import os
 from pymongo import MongoClient
+from pyspark.sql import SparkSession
+from pyspark.ml import PipelineModel
+from pyspark.sql.types import StructType, StructField, DoubleType, IntegerType
+import os
 
 
 class MLService:
     def __init__(self, mongo_uri: str = "mongodb://localhost:27017/", db_name: str = "youtube_trending"):
-        """Initialize ML service"""
+        """Initialize ML service with Spark MLlib"""
         self.mongo_client = MongoClient(mongo_uri)
         self.db = self.mongo_client[db_name]
         
-        # Model storage
+        # Spark session for ML
+        self.spark = None
         self.models = {}
-        self.scalers = {}
         self.is_trained = False
         
-        # Try to load pre-trained models
-        self.load_models()
+        # Initialize Spark and load models
+        self._init_spark()
+        self.load_models_from_hdfs()
 
-    def load_models(self) -> bool:
-        """Load pre-trained models from disk"""
+    def _init_spark(self):
+        """Initialize Spark session for ML operations"""
         try:
-            model_dir = "models/"
-            if not os.path.exists(model_dir):
-                os.makedirs(model_dir)
-                return False
+            self.spark = SparkSession.builder \
+                .appName("YouTubeMLService") \
+                .master("local[*]") \
+                .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
+                .config("spark.sql.adaptive.enabled", "true") \
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+                .getOrCreate()
             
-            model_files = {
-                "trending_classifier": f"{model_dir}trending_classifier.joblib",
-                "views_regressor": f"{model_dir}views_regressor.joblib", 
-                "content_clusterer": f"{model_dir}content_clusterer.joblib",
-                "scaler": f"{model_dir}feature_scaler.joblib"
+            # Set log level to reduce noise
+            self.spark.sparkContext.setLogLevel("WARN")
+            print("✅ Spark session initialized for ML service")
+            
+        except Exception as e:
+            print(f"❌ Failed to initialize Spark: {str(e)}")
+            raise HTTPException(status_code=503, detail="Spark initialization failed")
+
+    def load_models_from_hdfs(self) -> bool:
+        """Load trained Spark MLlib models from HDFS"""
+        try:
+            if not self.spark:
+                raise HTTPException(status_code=503, detail="Spark session not initialized")
+            
+            hdfs_model_paths = {
+                "trending_classifier": "hdfs://localhost:9000/youtube_trending/models/trending_prediction",
+                "views_regressor": "hdfs://localhost:9000/youtube_trending/models/regression",
+                "content_clusterer": "hdfs://localhost:9000/youtube_trending/models/clustering"
             }
             
             loaded_count = 0
-            for model_name, file_path in model_files.items():
-                if os.path.exists(file_path):
-                    try:
-                        if model_name == "scaler":
-                            self.scalers["main"] = joblib.load(file_path)
-                        else:
-                            self.models[model_name] = joblib.load(file_path)
-                        loaded_count += 1
-                        print(f"[OK] Loaded {model_name}")
-                    except Exception as e:
-                        print(f"[WARN] Could not load {model_name}: {str(e)}")
+            for model_name, hdfs_path in hdfs_model_paths.items():
+                try:
+                    model = PipelineModel.load(hdfs_path)
+                    self.models[model_name] = model
+                    loaded_count += 1
+                    print(f"✅ Loaded {model_name} from HDFS ({len(model.stages)} stages)")
+                except Exception as e:
+                    print(f"❌ Failed to load {model_name}: {str(e)}")
             
-            self.is_trained = loaded_count >= 3  # At least 3 models
+            self.is_trained = loaded_count == 3
             
             if self.is_trained:
-                print(f"[SUCCESS] Loaded {loaded_count} ML models")
+                print(f"🚀 All {loaded_count} Spark MLlib models loaded from HDFS")
                 return True
             else:
-                print("[INFO] No pre-trained models found, will use rule-based predictions")
+                print(f"⚠️ Only {loaded_count}/3 models loaded. Train models first.")
                 return False
                 
         except Exception as e:
-            print(f"[ERROR] Failed to load models: {str(e)}")
+            print(f"❌ Failed to load models from HDFS: {str(e)}")
             self.is_trained = False
             return False
 
-    def train_models(self) -> bool:
-        """Train models using MongoDB data"""
-        try:
-            print("🤖 Training ML models...")
-            
-            # Load training data from MongoDB
-            data = list(self.db.ml_features.find({}, {"_id": 0}))
-            if len(data) < 1000:
-                print("[WARN] Insufficient training data")
-                return False
-            
-            print(f"[OK] Loaded {len(data)} training samples")
-            
-            # Prepare features
-            features = []
-            trending_labels = []
-            view_targets = []
-            
-            for record in data:
-                # Extract features
-                feature_row = [
-                    record.get("likes", 0),
-                    record.get("dislikes", 0), 
-                    record.get("comment_count", 0),
-                    record.get("like_ratio", 0),
-                    record.get("engagement_score", 0),
-                    record.get("title_length", 0),
-                    record.get("tag_count", 0),
-                    record.get("category_id", 0)
-                ]
-                
-                features.append(feature_row)
-                
-                # Labels for classification (trending prediction)
-                is_trending = 1 if record.get("views", 0) > 100000 else 0
-                trending_labels.append(is_trending)
-                
-                # Targets for regression (view prediction)
-                views = max(1, record.get("views", 1))
-                log_views = math.log(views)
-                view_targets.append(log_views)
-            
-            # Convert to numpy arrays
-            X = np.array(features)
-            y_trending = np.array(trending_labels)
-            y_views = np.array(view_targets)
-            
-            # Feature scaling
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
-            self.scalers["main"] = scaler
-            
-            # Split data
-            X_train, X_test, y_trend_train, y_trend_test = train_test_split(
-                X_scaled, y_trending, test_size=0.2, random_state=42
-            )
-            _, _, y_views_train, y_views_test = train_test_split(
-                X_scaled, y_views, test_size=0.2, random_state=42
-            )
-            
-            # Train trending classifier
-            trending_model = RandomForestClassifier(n_estimators=100, random_state=42)
-            trending_model.fit(X_train, y_trend_train)
-            trend_score = trending_model.score(X_test, y_trend_test)
-            self.models["trending_classifier"] = trending_model
-            print(f"[OK] Trending classifier accuracy: {trend_score:.4f}")
-            
-            # Train views regressor
-            views_model = RandomForestRegressor(n_estimators=100, random_state=42)
-            views_model.fit(X_train, y_views_train)
-            views_score = views_model.score(X_test, y_views_test)
-            self.models["views_regressor"] = views_model
-            print(f"[OK] Views regressor R²: {views_score:.4f}")
-            
-            # Train content clusterer
-            clusterer = KMeans(n_clusters=5, random_state=42)
-            clusterer.fit(X_scaled)
-            self.models["content_clusterer"] = clusterer
-            print(f"[OK] Content clusterer trained with 5 clusters")
-            
-            # Save models
-            self.save_models()
-            self.is_trained = True
-            
-            print("✅ ML models trained successfully!")
-            return True
-            
-        except Exception as e:
-            print(f"[ERROR] Training failed: {str(e)}")
-            return False
-
-    def save_models(self):
-        """Save trained models to disk"""
-        try:
-            model_dir = "models/"
-            os.makedirs(model_dir, exist_ok=True)
-            
-            # Save models
-            for model_name, model in self.models.items():
-                file_path = f"{model_dir}{model_name}.joblib"
-                joblib.dump(model, file_path)
-                print(f"[OK] Saved {model_name}")
-            
-            # Save scaler
-            if "main" in self.scalers:
-                joblib.dump(self.scalers["main"], f"{model_dir}feature_scaler.joblib")
-                print(f"[OK] Saved feature scaler")
-                
-        except Exception as e:
-            print(f"[ERROR] Failed to save models: {str(e)}")
-
     def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict if a video will be trending"""
+        """Predict if a video will be trending using Spark MLlib"""
         try:
-            # Extract features
-            features = self._extract_features(video_data)
-            
             if not self.is_trained or "trending_classifier" not in self.models:
-                raise HTTPException(status_code=503, detail="ML models not trained. Please train models first.")
+                raise HTTPException(status_code=503, detail="Trending classifier not available. Train models first.")
             
-            # Use trained model
-            X = np.array([features])
-            if "main" in self.scalers:
-                X = self.scalers["main"].transform(X)
+            # Create DataFrame from input data
+            input_df = self._create_spark_dataframe(video_data)
             
+            # Get model and predict
             model = self.models["trending_classifier"]
-            prediction = model.predict(X)[0]
-            probability = model.predict_proba(X)[0][1]  # Probability of trending
+            predictions = model.transform(input_df)
+            
+            # Extract results
+            result = predictions.select("prediction", "probability").collect()[0]
+            prediction = int(result["prediction"])
+            probability = float(result["probability"][1])  # Probability of class 1 (trending)
             
             return {
-                "trending_probability": float(probability),
-                "prediction": int(prediction),
+                "trending_probability": probability,
+                "prediction": prediction,
                 "confidence": "high" if probability > 0.7 or probability < 0.3 else "medium",
-                "method": "scikit_learn"
+                "method": "spark_mllib"
             }
                 
         except Exception as e:
-            print(f"[ERROR] Trending prediction failed: {str(e)}")
+            print(f"❌ Trending prediction failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict view count for a video"""
+        """Predict view count using Spark MLlib regression"""
         try:
-            features = self._extract_features(video_data)
-            
             if not self.is_trained or "views_regressor" not in self.models:
-                raise HTTPException(status_code=503, detail="ML models not trained. Please train models first.")
+                raise HTTPException(status_code=503, detail="Views regressor not available. Train models first.")
             
-            # Use trained model
-            X = np.array([features])
-            if "main" in self.scalers:
-                X = self.scalers["main"].transform(X)
+            # Create DataFrame from input data
+            input_df = self._create_regression_dataframe(video_data)
             
+            # Get model and predict
             model = self.models["views_regressor"]
-            log_views = model.predict(X)[0]
-            predicted_views = int(math.exp(log_views))
+            predictions = model.transform(input_df)
+            
+            # Extract results
+            result = predictions.select("prediction").collect()[0]
+            predicted_log_views = float(result["prediction"])
+            predicted_views = int(max(0, predicted_log_views))  # Convert from log scale if needed
             
             return {
-                "predicted_views": max(0, predicted_views),
+                "predicted_views": predicted_views,
                 "confidence": "high",
-                "method": "scikit_learn"
+                "method": "spark_mllib"
             }
                 
         except Exception as e:
-            print(f"[ERROR] Views prediction failed: {str(e)}")
+            print(f"❌ Views prediction failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_cluster(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict content cluster for a video"""
+        """Predict content cluster using Spark MLlib clustering"""
         try:
-            features = self._extract_features(video_data)
-            
             if not self.is_trained or "content_clusterer" not in self.models:
-                raise HTTPException(status_code=503, detail="ML models not trained. Please train models first.")
+                raise HTTPException(status_code=503, detail="Content clusterer not available. Train models first.")
             
-            # Use trained model
-            X = np.array([features])
-            if "main" in self.scalers:
-                X = self.scalers["main"].transform(X)
+            # Create DataFrame from input data
+            input_df = self._create_clustering_dataframe(video_data)
             
+            # Get model and predict
             model = self.models["content_clusterer"]
-            cluster = model.predict(X)[0]
+            predictions = model.transform(input_df)
+            
+            # Extract results
+            result = predictions.select("cluster").collect()[0]
+            cluster = int(result["cluster"])
+            
+            # Map cluster to content type
+            cluster_types = {
+                0: "Entertainment",
+                1: "Educational", 
+                2: "Music",
+                3: "Gaming",
+                4: "News",
+                5: "Tech",
+                6: "Sports",
+                7: "Other"
+            }
+            
+            cluster_type = cluster_types.get(cluster, "Other")
             
             return {
-                "cluster": int(cluster),
-                "confidence": "high",
-                "method": "scikit_learn"
+                "cluster": cluster,
+                "cluster_type": cluster_type,
+                "method": "spark_mllib"
             }
                 
         except Exception as e:
-            print(f"[ERROR] Clustering failed: {str(e)}")
+            print(f"❌ Clustering failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
-    def _extract_features(self, video_data: Dict[str, Any]) -> list:
-        """Extract numerical features from video data"""
-        return [
-            video_data.get("likes", 0),
-            video_data.get("dislikes", 0),
-            video_data.get("comment_count", 0),
-            video_data.get("likes", 0) / max(video_data.get("views", 1), 1),  # like_ratio
-            (video_data.get("likes", 0) + video_data.get("comment_count", 0)) / max(video_data.get("views", 1), 1),  # engagement_score
-            len(video_data.get("title", "")),  # title_length
-            len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0,  # tag_count
-            video_data.get("category_id", 0)
-        ]
+    def _create_spark_dataframe(self, video_data: Dict[str, Any]):
+        """Create Spark DataFrame for trending prediction"""
+        return self._create_trending_dataframe(video_data)
+
+    def _create_trending_dataframe(self, video_data: Dict[str, Any]):
+        """Create DataFrame for trending classification model"""
+        try:
+            views = max(float(video_data.get("views", 1)), 1)
+            likes = float(video_data.get("likes", 0))
+            dislikes = float(video_data.get("dislikes", 0))
+            comment_count = float(video_data.get("comment_count", 0))
+            title = video_data.get("title", "")
+            
+            import re
+            has_caps = 1.0 if re.search(r'[A-Z]{3,}', title) else 0.0
+            
+            features = {
+                "like_ratio": likes / views,
+                "dislike_ratio": dislikes / views,
+                "comment_ratio": comment_count / views,
+                "engagement_score": (likes + comment_count) / views,
+                "title_length": float(len(title)),
+                "has_caps": has_caps,
+                "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0),
+                "category_id": float(video_data.get("category_id", 0))
+            }
+            
+            schema = StructType([
+                StructField("like_ratio", DoubleType(), True),
+                StructField("dislike_ratio", DoubleType(), True),
+                StructField("comment_ratio", DoubleType(), True),
+                StructField("engagement_score", DoubleType(), True),
+                StructField("title_length", DoubleType(), True),
+                StructField("has_caps", DoubleType(), True),
+                StructField("tag_count", DoubleType(), True),
+                StructField("category_id", DoubleType(), True)
+            ])
+            
+            return self.spark.createDataFrame([tuple(features.values())], schema)
+            
+        except Exception as e:
+            print(f"❌ Failed to create trending DataFrame: {str(e)}")
+            raise HTTPException(status_code=400, detail="Invalid input data format")
+
+    def _create_regression_dataframe(self, video_data: Dict[str, Any]):
+        """Create DataFrame for views regression model"""
+        try:
+            views = max(float(video_data.get("views", 1)), 1)
+            likes = float(video_data.get("likes", 0))
+            dislikes = float(video_data.get("dislikes", 0))
+            comment_count = float(video_data.get("comment_count", 0))
+            title = video_data.get("title", "")
+            
+            features = {
+                "likes": likes,
+                "dislikes": dislikes,
+                "comment_count": comment_count,
+                "like_ratio": likes / views,
+                "engagement_score": (likes + comment_count) / views,
+                "title_length": float(len(title)),
+                "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0),
+                "category_id": float(video_data.get("category_id", 0))
+            }
+            
+            schema = StructType([
+                StructField("likes", DoubleType(), True),
+                StructField("dislikes", DoubleType(), True),
+                StructField("comment_count", DoubleType(), True),
+                StructField("like_ratio", DoubleType(), True),
+                StructField("engagement_score", DoubleType(), True),
+                StructField("title_length", DoubleType(), True),
+                StructField("tag_count", DoubleType(), True),
+                StructField("category_id", DoubleType(), True)
+            ])
+            
+            return self.spark.createDataFrame([tuple(features.values())], schema)
+            
+        except Exception as e:
+            print(f"❌ Failed to create regression DataFrame: {str(e)}")
+            raise HTTPException(status_code=400, detail="Invalid input data format")
+
+    def _create_clustering_dataframe(self, video_data: Dict[str, Any]):
+        """Create DataFrame for content clustering model"""
+        try:
+            views = max(float(video_data.get("views", 1)), 1)
+            likes = float(video_data.get("likes", 0))
+            comment_count = float(video_data.get("comment_count", 0))
+            title = video_data.get("title", "")
+            
+            import math
+            log_views = math.log1p(views)
+            log_likes = math.log1p(likes)
+            log_comments = math.log1p(comment_count)
+            
+            features = {
+                "log_views": float(log_views),
+                "log_likes": float(log_likes),
+                "log_comments": float(log_comments),
+                "like_ratio": likes / views,
+                "engagement_score": (likes + comment_count) / views,
+                "title_length": float(len(title)),
+                "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0)
+            }
+            
+            schema = StructType([
+                StructField("log_views", DoubleType(), True),
+                StructField("log_likes", DoubleType(), True),
+                StructField("log_comments", DoubleType(), True),
+                StructField("like_ratio", DoubleType(), True),
+                StructField("engagement_score", DoubleType(), True),
+                StructField("title_length", DoubleType(), True),
+                StructField("tag_count", DoubleType(), True)
+            ])
+            
+            return self.spark.createDataFrame([tuple(features.values())], schema)
+            
+        except Exception as e:
+            print(f"❌ Failed to create clustering DataFrame: {str(e)}")
+            raise HTTPException(status_code=400, detail="Invalid input data format")
+
+    def train_models(self) -> bool:
+        """Trigger model training using Spark job"""
+        try:
+            if not self.spark:
+                raise HTTPException(status_code=503, detail="Spark session not available")
+            
+            # Check training data availability
+            training_data_count = self.db.ml_features.count_documents({})
+            if training_data_count < 1000:
+                raise HTTPException(status_code=400, detail=f"Insufficient training data: {training_data_count} records")
+            
+            print(f"🤖 Triggering Spark MLlib model training with {training_data_count} records...")
+            
+            # Run Spark training job
+            import subprocess
+            import sys
+            
+            result = subprocess.run(
+                [sys.executable, "spark/train_models.py"], 
+                capture_output=True, 
+                text=True, 
+                cwd=os.getcwd()
+            )
+            
+            if result.returncode == 0:
+                # Reload models after training
+                success = self.load_models_from_hdfs()
+                if success:
+                    return {
+                        "status": "success",
+                        "message": "Spark MLlib models trained successfully",
+                        "training_data_count": training_data_count,
+                        "models": list(self.models.keys()),
+                        "framework": "spark_mllib"
+                    }
+                else:
+                    raise HTTPException(status_code=500, detail="Training completed but model loading failed")
+            else:
+                raise HTTPException(status_code=500, detail=f"Training failed: {result.stderr}")
+                
+        except Exception as e:
+            print(f"❌ Training failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
 
     def get_model_info(self) -> Dict[str, Any]:
-        """Get information about loaded models"""
+        """Get information about loaded Spark MLlib models"""
+        model_details = {}
+        for name, model in self.models.items():
+            model_details[name] = {
+                "stages": len(model.stages) if hasattr(model, 'stages') else 0,
+                "type": "PipelineModel"
+            }
+        
         return {
             "loaded_models": list(self.models.keys()),
             "is_trained": self.is_trained,
-            "model_type": "scikit_learn",
-            "scalers": list(self.scalers.keys()),
-            "total_models": len(self.models)
+            "model_type": "spark_mllib",
+            "framework": "Apache Spark MLlib",
+            "storage": "HDFS",
+            "model_details": model_details,
+            "total_models": len(self.models),
+            "spark_session": self.spark is not None
         }
+
+    def __del__(self):
+        """Cleanup Spark session"""
+        if hasattr(self, 'spark') and self.spark:
+            try:
+                self.spark.stop()
+            except:
+                pass
 
 
 # Global ML service instance
