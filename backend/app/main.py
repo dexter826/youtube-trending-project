@@ -152,10 +152,63 @@ async def get_countries():
 async def get_categories():
     """Get list of video categories"""
     try:
-        categories = list(db.trending_results.distinct("category_title"))
-        return {"categories": sorted([cat for cat in categories if cat])}
+        # YouTube category mapping
+        category_mapping = {
+            1: "Film & Animation",
+            2: "Autos & Vehicles", 
+            10: "Music",
+            15: "Pets & Animals",
+            17: "Sports",
+            19: "Travel & Events",
+            20: "Gaming",
+            22: "People & Blogs",
+            23: "Comedy",
+            24: "Entertainment",
+            25: "News & Politics",
+            26: "Howto & Style",
+            27: "Education",
+            28: "Science & Technology",
+            29: "Nonprofits & Activism"
+        }
+        
+        # Get unique category IDs from database
+        category_ids = list(db.trending_results.aggregate([
+            {"$unwind": "$top_videos"},
+            {"$group": {"_id": "$top_videos.category_id"}},
+            {"$sort": {"_id": 1}}
+        ]))
+        
+        # Map IDs to names
+        categories = []
+        for cat_doc in category_ids:
+            cat_id = cat_doc["_id"]
+            if cat_id in category_mapping:
+                categories.append({
+                    "id": cat_id,
+                    "name": category_mapping[cat_id]
+                })
+        
+        return {"categories": categories}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch categories: {str(e)}")
+
+@app.get("/dates")
+async def get_dates(country: Optional[str] = None):
+    """Get available dates for analysis"""
+    try:
+        filter_query = {}
+        if country:
+            filter_query["country"] = country
+            
+        # Get distinct dates for the country
+        dates = list(db.trending_results.distinct("date", filter_query))
+        
+        # Sort dates in descending order (newest first)
+        sorted_dates = sorted(dates, reverse=True)
+        
+        return {"dates": sorted_dates}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch dates: {str(e)}")
 
 @app.get("/trending")
 async def get_trending_videos(

@@ -40,7 +40,15 @@ const MLPredictor = () => {
     try {
       setLoadingCategories(true);
       const data = await apiService.getCategories();
-      setCategories(data.categories || {});
+      
+      // Convert array to object for easier lookup
+      const categoriesObj = {};
+      if (data.categories && Array.isArray(data.categories)) {
+        data.categories.forEach(cat => {
+          categoriesObj[cat.id] = cat.name;
+        });
+      }
+      setCategories(categoriesObj);
     } catch (err) {
       console.error("Failed to load categories:", err);
       // Fallback categories tiếng Việt
@@ -67,7 +75,7 @@ const MLPredictor = () => {
 
   const loadModelInfo = async () => {
     try {
-      const info = await apiService.getModelInfo();
+      const info = await apiService.getMLHealth();
       setModelInfo(info);
     } catch (err) {
       console.error("Failed to load model info:", err);

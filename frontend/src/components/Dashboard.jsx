@@ -3,7 +3,6 @@ import TrendingVideosChart from './TrendingVideosChart';
 import WordCloudComponent from './WordCloudComponent';
 import StatisticsPanel from './StatisticsPanel';
 import VideoTable from './VideoTable';
-import ClusteringPanel from './ClusteringPanel';
 
 const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate }) => {
   if (!trendingData && !wordcloudData) {
@@ -67,9 +66,6 @@ const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate 
           <VideoTable videos={trendingData.top_videos} />
         </div>
       )}
-
-      {/* Clustering Analysis Panel */}
-      <ClusteringPanel />
 
       {/* Processing Info */}
       <div className="bg-gray-50 rounded-lg p-4">

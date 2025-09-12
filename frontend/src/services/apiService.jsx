@@ -111,7 +111,7 @@ const apiService = {
   },
 
   // ============================================================================
-  // MACHINE LEARNING ENDPOINTS
+  // MACHINE LEARNING ENDPOINTS  
   // ============================================================================
 
   // Get ML service health
@@ -168,100 +168,11 @@ const apiService = {
   // LEGACY API COMPATIBILITY (for existing frontend components)
   // ============================================================================
 
-  // Legacy date endpoint - maps to countries
+  // Get available dates for a country
   async getDates(country = null) {
-    return this.getCountries();
-  },
-
-  // Legacy analytics endpoint - maps to statistics
-  async getAnalytics(country = null) {
-    return this.getStatistics(country);
-  },
-
-  // Legacy model info endpoint - maps to ML health
-  async getModelInfo() {
-    return this.getMLHealth();
-  },
-
-  // Legacy model evaluation endpoint - maps to ML health
-  async getModelEvaluation() {
-    return this.getMLHealth();
-  },
-
-  // Legacy video details endpoint - returns from trending list
-  async getVideoDetails(videoId) {
-    try {
-      const response = await this.getTrendingVideos();
-      const video = response.videos?.find(v => v.video_id === videoId);
-      return video ? { video } : { video: null };
-    } catch (error) {
-      throw new Error(`Video ${videoId} not found`);
-    }
-  },
-
-  // Legacy categories stats endpoint - maps to categories
-  async getCategoriesStats(country = null) {
-    const categories = await this.getCategories();
-    const stats = await this.getStatistics(country);
-    return {
-      categories: categories.categories?.map(cat => ({
-        category: cat,
-        count: Math.floor(Math.random() * 100) + 1 // Mock data for compatibility
-      })) || [],
-      ...stats
-    };
-  },
-
-  // Legacy batch prediction - maps to single predictions
-  async predictBatch(videosData, modelName = "random_forest") {
-    const results = [];
-    for (const video of videosData) {
-      try {
-        const result = await this.predictTrending(video);
-        results.push(result);
-      } catch (error) {
-        results.push({ error: error.message });
-      }
-    }
-    return { predictions: results };
-  },
-
-  // Legacy clustering endpoints - mapped to simplified clustering
-  async getBehavioralClustering(videoData) {
-    return this.predictCluster(videoData);
-  },
-
-  async getContentClustering(videoData) {
-    return this.predictCluster(videoData);
-  },
-
-  async getGeographicClustering(country) {
-    return {
-      cluster_id: Math.floor(Math.random() * 5),
-      cluster_name: `Geographic Cluster ${Math.floor(Math.random() * 5) + 1}`,
-      country: country,
-      message: "Geographic clustering mapped to simple clustering"
-    };
-  },
-
-  async getTemporalClustering(temporalData) {
-    return this.predictCluster(temporalData);
-  },
-
-  async getComprehensiveClustering(videoData) {
-    return this.predictCluster(videoData);
-  },
-
-  async getAdvancedClusteringStatistics() {
-    return this.getMLHealth();
-  },
-
-  async trainAdvancedClustering() {
-    return this.trainMLModels();
-  },
-
-  async getAdvancedClusteringModels() {
-    return this.getMLHealth();
+    const endpoint = country ? `/dates?country=${country}` : '/dates';
+    const response = await api.get(endpoint);
+    return response.data;
   },
 };
 
