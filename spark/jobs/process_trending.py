@@ -33,7 +33,7 @@ class YouTubeTrendingProcessor:
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
             .config("spark.mongodb.input.uri", f"{MONGO_URI}{DB_NAME}.raw_videos") \
             .config("spark.mongodb.output.uri", f"{MONGO_URI}{DB_NAME}.trending_results") \
-            .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:9000") \
+            .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
             .getOrCreate()
         
         self.spark.sparkContext.setLogLevel("WARN")
@@ -43,7 +43,7 @@ class YouTubeTrendingProcessor:
         self.db = self.mongo_client[DB_NAME]
         
         # HDFS configuration
-        self.hdfs_base_path = "hdfs://namenode:9000/youtube_trending"
+        self.hdfs_base_path = "hdfs://localhost:9000/youtube_trending"
         
         print("[OK] Spark session with HDFS support and MongoDB connection initialized")
         print(f"[HDFS] Base path: {self.hdfs_base_path}")
@@ -54,6 +54,159 @@ class YouTubeTrendingProcessor:
         return match.group(1) if match else 'UNKNOWN'
 
     def load_csv_data_from_hdfs(self):
+        """Load and process CSV files from HDFS"""
+        print(f"📁 Loading CSV files from HDFS: {self.hdfs_base_path}/raw_data/")
+        
+        # Define schema for better performance
+        schema = StructType([
+            StructField("video_id", StringType(), True),
+            StructField("trending_date", StringType(), True),
+            StructField("title", StringType(), True),
+            StructField("channel_title", StringType(), True),
+            StructField("category_id", IntegerType(), True),
+            StructField("publish_time", StringType(), True),
+            StructField("tags", StringType(), True),
+            StructField("views", LongType(), True),
+            StructField("likes", LongType(), True),
+            StructField("dislikes", LongType(), True),
+            StructField("comment_count", LongType(), True),
+            StructField("thumbnail_link", StringType(), True),
+            StructField("comments_disabled", BooleanType(), True),
+            StructField("ratings_disabled", BooleanType(), True),
+            StructField("video_error_or_removed", BooleanType(), True),
+            StructField("description", StringType(), True)
+        ])
+        
+        # Countries to process
+        countries = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']
+        all_data = []
+        
+        for country in countries:
+            hdfs_path = f"{self.hdfs_base_path}/raw_data/{country}/{country}videos.csv"
+            
+            print(f"[PROCESSING] Loading {country} data from HDFS: {hdfs_path}")
+            
+            try:
+                df = self.spark.read.csv(
+                    hdfs_path,
+                    header=True,
+                    schema=schema,
+                    timestampFormat="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+                )
+                
+                # Add country column
+                df = df.withColumn("country", lit(country))
+                
+                # Convert trending_date to proper date format
+                df = df.withColumn(
+                    "trending_date_parsed",
+                    to_date(col("trending_date"), "yy.dd.MM")
+                )
+                
+                # Clean and validate data
+                df = df.filter(
+                    col("video_id").isNotNull() &
+                    col("title").isNotNull() &
+                    col("views").isNotNull() &
+                    (col("views") >= 0)
+                )
+                
+                all_data.append(df)
+                print(f"[OK] Loaded {country} data from HDFS")
+                
+            except Exception as e:
+                print(f"[WARN] Could not load {country} data from HDFS: {str(e)}")
+                continue
+        
+        if all_data:
+            # Union all dataframes
+            combined_df = all_data[0]
+            for df in all_data[1:]:
+                combined_df = combined_df.unionByName(df)
+            
+            print(f"[SUCCESS] Total records loaded from HDFS: {combined_df.count()}")
+            return combined_df
+        
+        print("[ERROR] No data loaded from HDFS!")
+        return None
+        """Load and process CSV files from local directory"""
+        print(f"📁 Loading CSV files from local: {data_path}")
+        
+        # Define schema for better performance
+        schema = StructType([
+            StructField("video_id", StringType(), True),
+            StructField("trending_date", StringType(), True),
+            StructField("title", StringType(), True),
+            StructField("channel_title", StringType(), True),
+            StructField("category_id", IntegerType(), True),
+            StructField("publish_time", StringType(), True),
+            StructField("tags", StringType(), True),
+            StructField("views", LongType(), True),
+            StructField("likes", LongType(), True),
+            StructField("dislikes", LongType(), True),
+            StructField("comment_count", LongType(), True),
+            StructField("thumbnail_link", StringType(), True),
+            StructField("comments_disabled", BooleanType(), True),
+            StructField("ratings_disabled", BooleanType(), True),
+            StructField("video_error_or_removed", BooleanType(), True),
+            StructField("description", StringType(), True)
+        ])
+        
+        # Countries to process
+        countries = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']
+        all_data = []
+        
+        for country in countries:
+            csv_path = os.path.join(data_path, f"{country}videos.csv")
+            
+            print(f"[PROCESSING] Loading {country} data from: {csv_path}")
+            
+            if os.path.exists(csv_path):
+                try:
+                    df = self.spark.read.csv(
+                        csv_path,
+                        header=True,
+                        schema=schema,
+                        timestampFormat="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+                    )
+                    
+                    # Add country column
+                    df = df.withColumn("country", lit(country))
+                    
+                    # Convert trending_date to proper date format
+                    df = df.withColumn(
+                        "trending_date_parsed",
+                        to_date(col("trending_date"), "yy.dd.MM")
+                    )
+                    
+                    # Clean and validate data
+                    df = df.filter(
+                        col("video_id").isNotNull() &
+                        col("title").isNotNull() &
+                        col("views").isNotNull() &
+                        (col("views") >= 0)
+                    )
+                    
+                    all_data.append(df)
+                    print(f"[OK] Loaded {country} data: {df.count()} records")
+                    
+                except Exception as e:
+                    print(f"[ERROR] Could not load {country} data: {str(e)}")
+                    continue
+            else:
+                print(f"[WARN] {csv_path} not found")
+        
+        if all_data:
+            # Union all dataframes
+            combined_df = all_data[0]
+            for df in all_data[1:]:
+                combined_df = combined_df.unionByName(df)
+            
+            print(f"[SUCCESS] Total records loaded: {combined_df.count()}")
+            return combined_df
+        
+        print("[ERROR] No data loaded!")
+        return None
         """Load and process CSV files from HDFS"""
         print(f"📁 Loading CSV files from HDFS: {self.hdfs_base_path}/raw_data/")
         
@@ -332,8 +485,8 @@ class YouTubeTrendingProcessor:
         
         return results
 
-    def run_full_pipeline(self, fallback_data_path=None):
-        """Run the complete data processing pipeline with HDFS support"""
+    def run_full_pipeline(self, data_path=None):
+        """Run the complete data processing pipeline with HDFS"""
         try:
             print("🚀 Starting YouTube Trending Data Processing Pipeline (HDFS-enabled)")
             print("=" * 70)
@@ -341,10 +494,10 @@ class YouTubeTrendingProcessor:
             # Step 1: Try to load CSV data from HDFS first
             df = self.load_csv_data_from_hdfs()
             
-            # Fallback to local data if HDFS fails and fallback path provided
-            if df is None and fallback_data_path:
+            # Fallback to local data if needed
+            if df is None and data_path:
                 print("[FALLBACK] Loading from local filesystem...")
-                df = self.load_csv_data(fallback_data_path)
+                df = self.load_csv_data(data_path)
             
             if df is None:
                 print("[ERROR] Failed to load data from both HDFS and local. Exiting.")
@@ -377,21 +530,20 @@ class YouTubeTrendingProcessor:
             self.mongo_client.close()
 
 def main():
-    """Main execution function with HDFS support"""
+    """Main execution function"""
     if len(sys.argv) > 2:
-        print("Usage: spark-submit process_trending.py [fallback_data_directory]")
-        print("Example: spark-submit process_trending.py /opt/bitnami/spark/data")
-        print("Note: Will try HDFS first, then fallback to local if provided")
+        print("Usage: python process_trending.py [data_directory]")
+        print("Example: python process_trending.py data")
         sys.exit(1)
     
-    fallback_data_path = sys.argv[1] if len(sys.argv) == 2 else None
+    data_path = sys.argv[1] if len(sys.argv) == 2 else "data"
     
-    if fallback_data_path and not os.path.exists(fallback_data_path):
-        print(f"[ERROR] Fallback data directory not found: {fallback_data_path}")
+    if not os.path.exists(data_path):
+        print(f"[ERROR] Data directory not found: {data_path}")
         sys.exit(1)
     
     processor = YouTubeTrendingProcessor()
-    success = processor.run_full_pipeline(fallback_data_path)
+    success = processor.run_full_pipeline(data_path)
     
     sys.exit(0 if success else 1)
 

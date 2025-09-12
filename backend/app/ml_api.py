@@ -1,21 +1,16 @@
 """
 Spark MLlib Service for FastAPI Backend
-Author: BigData Expert
-Description: ML prediction service using Spark MLlib models
+Description: ML prediction service using Spark MLlib models from HDFS
 """
 
-import os
-import sys
-from datetime import datetime
-from typing import Dict, List, Optional, Any
+import math
+from typing import Dict, Any
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from pyspark.ml import PipelineModel
-from pyspark.ml.feature import VectorAssembler
 
-import pymongo
 from pymongo import MongoClient
 
 class SparkMLlibService:
@@ -28,16 +23,16 @@ class SparkMLlibService:
         self.spark = SparkSession.builder \
             .appName("SparkMLlibService") \
             .master("local[*]") \
-            .config("spark.driver.memory", "2g") \
+            .config("spark.driver.memory", "3g") \
             .config("spark.executor.memory", "2g") \
-            .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:9000") \
+            .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
             .getOrCreate()
         
         self.spark.sparkContext.setLogLevel("ERROR")
         
         # Model components
         self.models = {}
-        self.hdfs_model_path = "hdfs://namenode:9000/youtube_trending/models"
+        self.hdfs_model_path = "hdfs://localhost:9000/youtube_trending/models"
         self.is_loaded = False
         
         # Try to load models
@@ -46,201 +41,212 @@ class SparkMLlibService:
     def load_mllib_models(self) -> bool:
         """Load trained Spark MLlib models from HDFS"""
         try:
-            # Get model metadata from MongoDB
-            metadata = self.db.ml_metadata.find_one({"type": "spark_mllib_models"})
+            print("[ML] Loading MLlib models from HDFS...")
             
-            if not metadata:
-                print("[WARN] No Spark MLlib models found. Train models first.")
-                return False
+            model_types = ["trending_prediction", "regression", "clustering"]
             
-            available_models = metadata.get("models", [])
-            models_loaded = 0
-            
-            for model_name in available_models:
-                model_path = f"{self.hdfs_model_path}/{model_name}"
+            for model_type in model_types:
+                model_path = f"{self.hdfs_model_path}/{model_type}"
                 
                 try:
-                    # Load pipeline model from HDFS
-                    pipeline_model = PipelineModel.load(model_path)
-                    self.models[model_name] = pipeline_model
-                    models_loaded += 1
-                    print(f"[OK] Loaded {model_name} from HDFS: {model_path}")
+                    # Load Spark MLlib pipeline model
+                    model = PipelineModel.load(model_path)
+                    self.models[model_type] = model
+                    print(f"[OK] Loaded {model_type} model from HDFS")
                     
                 except Exception as e:
-                    print(f"[WARN] Could not load {model_name}: {str(e)}")
+                    print(f"[WARN] Could not load {model_type} model: {str(e)}")
                     continue
             
-            if models_loaded == 0:
-                print("[WARN] No MLlib models could be loaded from HDFS")
+            self.is_loaded = len(self.models) > 0
+            
+            if self.is_loaded:
+                print(f"[SUCCESS] Loaded {len(self.models)} MLlib models")
+                return True
+            else:
+                print("[WARN] No models loaded - predictions will use fallback")
                 return False
-            
-            self.is_loaded = True
-            print(f"[OK] Spark MLlib Service loaded {models_loaded} models")
-            return True
-            
+                
         except Exception as e:
             print(f"[ERROR] Failed to load MLlib models: {str(e)}")
+            self.is_loaded = False
             return False
 
-    def predict_trending(self, video_data: Dict, model_name: str = "logistic_regression") -> Dict:
-        """Make trending prediction using Spark MLlib model"""
+    def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Predict if a video will be trending"""
         try:
-            if not self.is_loaded:
-                return {"error": "MLlib models not loaded", "prediction": None}
+            if "trending_prediction" not in self.models:
+                return {"trending_probability": 0.5, "confidence": "low", "method": "fallback"}
             
-            if model_name not in self.models:
-                available_models = list(self.models.keys())
-                return {
-                    "error": f"Model {model_name} not found. Available: {available_models}",
-                    "prediction": None
-                }
+            # Prepare features
+            features = {
+                "like_ratio": video_data.get("likes", 0) / max(video_data.get("views", 1), 1),
+                "dislike_ratio": video_data.get("dislikes", 0) / max(video_data.get("views", 1), 1),
+                "comment_ratio": video_data.get("comment_count", 0) / max(video_data.get("views", 1), 1),
+                "engagement_score": (video_data.get("likes", 0) + video_data.get("comment_count", 0)) / max(video_data.get("views", 1), 1),
+                "title_length": len(video_data.get("title", "")),
+                "has_caps": 1 if any(c.isupper() for c in video_data.get("title", "")[:10]) else 0,
+                "tag_count": len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0,
+                "category_id": video_data.get("category_id", 0)
+            }
             
-            # Convert input to Spark DataFrame
-            df = self.spark.createDataFrame([video_data])
+            # Create Spark DataFrame
+            df = self.spark.createDataFrame([features])
             
             # Make prediction
-            model = self.models[model_name]
+            model = self.models["trending_prediction"]
             predictions = model.transform(df)
             
-            # Extract prediction results
-            result = predictions.select("probability", "prediction").collect()[0]
-            
-            # Get prediction probability
-            probability = float(result.probability[1]) if result.probability else 0.0
-            prediction = int(result.prediction)
+            # Get probability
+            result = predictions.select("prediction", "probability").collect()[0]
+            probability = float(result.probability[1])  # Probability of class 1 (trending)
             
             return {
-                "prediction": prediction,
-                "probability": probability,
-                "model_used": model_name,
-                "framework": "Spark MLlib",
-                "is_trending": prediction == 1,
-                "confidence": probability if prediction == 1 else (1 - probability),
-                "timestamp": datetime.now().isoformat()
+                "trending_probability": probability,
+                "prediction": int(result.prediction),
+                "confidence": "high" if probability > 0.7 or probability < 0.3 else "medium",
+                "method": "spark_mllib"
             }
             
         except Exception as e:
-            return {
-                "error": f"Prediction failed: {str(e)}",
-                "prediction": None
-            }
+            print(f"[ERROR] Trending prediction failed: {str(e)}")
+            return {"trending_probability": 0.5, "confidence": "low", "method": "fallback"}
 
-    def get_clustering_analysis(self, video_data: List[Dict]) -> Dict:
-        """Perform clustering analysis on multiple videos"""
+    def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Predict view count for a video"""
         try:
-            if not self.is_loaded:
-                return {"error": "MLlib models not loaded"}
+            if "regression" not in self.models:
+                # Fallback prediction based on engagement
+                likes = video_data.get("likes", 0)
+                comments = video_data.get("comment_count", 0)
+                estimated_views = (likes * 50) + (comments * 100)
+                return {"predicted_views": estimated_views, "confidence": "low", "method": "fallback"}
             
-            # Check if clustering model exists
-            clustering_models = [name for name in self.models.keys() if 'cluster' in name.lower()]
-            
-            if not clustering_models:
-                return {"error": "No clustering models available"}
-            
-            # Convert to Spark DataFrame
-            df = self.spark.createDataFrame(video_data)
-            
-            results = {}
-            
-            for cluster_model_name in clustering_models:
-                try:
-                    model = self.models[cluster_model_name]
-                    clustered = model.transform(df)
-                    
-                    # Get cluster statistics
-                    cluster_stats = clustered.groupBy("cluster_prediction").agg(
-                        count("*").alias("count"),
-                        avg("views").alias("avg_views"),
-                        avg("like_ratio").alias("avg_like_ratio")
-                    ).collect()
-                    
-                    results[cluster_model_name] = [row.asDict() for row in cluster_stats]
-                    
-                except Exception as e:
-                    results[cluster_model_name] = {"error": str(e)}
-            
-            return {
-                "clustering_results": results,
-                "framework": "Spark MLlib",
-                "timestamp": datetime.now().isoformat()
+            # Prepare features
+            features = {
+                "likes": video_data.get("likes", 0),
+                "dislikes": video_data.get("dislikes", 0),
+                "comment_count": video_data.get("comment_count", 0),
+                "like_ratio": video_data.get("likes", 0) / max(video_data.get("views", 1), 1),
+                "engagement_score": (video_data.get("likes", 0) + video_data.get("comment_count", 0)) / max(video_data.get("views", 1), 1),
+                "title_length": len(video_data.get("title", "")),
+                "tag_count": len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0,
+                "category_id": video_data.get("category_id", 0)
             }
             
-        except Exception as e:
-            return {"error": f"Clustering analysis failed: {str(e)}"}
-
-    def predict_views(self, video_data: Dict, model_name: str = "linear_regression") -> Dict:
-        """Predict view count using regression model"""
-        try:
-            if not self.is_loaded:
-                return {"error": "MLlib models not loaded", "predicted_views": None}
-            
-            # Look for regression models
-            regression_models = [name for name in self.models.keys() if 'regression' in name.lower()]
-            
-            if not regression_models:
-                return {"error": "No regression models available", "predicted_views": None}
-            
-            # Use first available regression model
-            reg_model_name = regression_models[0]
-            
-            # Convert to Spark DataFrame
-            df = self.spark.createDataFrame([video_data])
+            # Create Spark DataFrame
+            df = self.spark.createDataFrame([features])
             
             # Make prediction
-            model = self.models[reg_model_name]
+            model = self.models["regression"]
             predictions = model.transform(df)
             
-            # Extract prediction
-            result = predictions.select("prediction").collect()[0]
-            log_views_prediction = float(result.prediction)
-            
-            # Convert back from log scale
-            predicted_views = int(exp(log_views_prediction) - 1)
+            # Get predicted log_views and convert back
+            log_views = predictions.select("prediction").collect()[0][0]
+            predicted_views = int(math.exp(log_views) - 1)
             
             return {
-                "predicted_views": predicted_views,
-                "log_prediction": log_views_prediction,
-                "model_used": reg_model_name,
-                "framework": "Spark MLlib",
-                "timestamp": datetime.now().isoformat()
+                "predicted_views": max(0, predicted_views),
+                "confidence": "high",
+                "method": "spark_mllib"
             }
             
         except Exception as e:
-            return {
-                "error": f"View prediction failed: {str(e)}",
-                "predicted_views": None
-            }
+            print(f"[ERROR] Views prediction failed: {str(e)}")
+            likes = video_data.get("likes", 0)
+            comments = video_data.get("comment_count", 0)
+            estimated_views = (likes * 50) + (comments * 100)
+            return {"predicted_views": estimated_views, "confidence": "low", "method": "fallback"}
 
-    def get_model_info(self) -> Dict:
+    def predict_cluster(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Predict cluster for a video"""
+        try:
+            if "clustering" not in self.models:
+                # Fallback clustering based on view ranges
+                views = video_data.get("views", 0)
+                if views < 10000:
+                    cluster = 0  # Low engagement
+                elif views < 100000:
+                    cluster = 1  # Medium engagement
+                elif views < 1000000:
+                    cluster = 2  # High engagement
+                elif views < 10000000:
+                    cluster = 3  # Viral content
+                else:
+                    cluster = 4  # Mega viral
+                return {"cluster": cluster, "confidence": "low", "method": "fallback"}
+            
+            # Prepare features
+            features = {
+                "views": video_data.get("views", 0),
+                "likes": video_data.get("likes", 0),
+                "comment_count": video_data.get("comment_count", 0),
+                "like_ratio": video_data.get("likes", 0) / max(video_data.get("views", 1), 1),
+                "engagement_score": (video_data.get("likes", 0) + video_data.get("comment_count", 0)) / max(video_data.get("views", 1), 1),
+                "title_length": len(video_data.get("title", "")),
+                "tag_count": len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0
+            }
+            
+            # Add log features
+            import math
+            features["log_views"] = math.log(features["views"] + 1)
+            features["log_likes"] = math.log(features["likes"] + 1)
+            features["log_comments"] = math.log(features["comment_count"] + 1)
+            
+            # Create Spark DataFrame
+            df = self.spark.createDataFrame([features])
+            
+            # Make prediction
+            model = self.models["clustering"]
+            predictions = model.transform(df)
+            
+            # Get cluster
+            cluster = predictions.select("cluster").collect()[0][0]
+            
+            return {
+                "cluster": int(cluster),
+                "confidence": "high",
+                "method": "spark_mllib"
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] Clustering prediction failed: {str(e)}")
+            # Fallback clustering
+            views = video_data.get("views", 0)
+            if views < 10000:
+                cluster = 0
+            elif views < 100000:
+                cluster = 1
+            elif views < 1000000:
+                cluster = 2
+            elif views < 10000000:
+                cluster = 3
+            else:
+                cluster = 4
+            return {"cluster": cluster, "confidence": "low", "method": "fallback"}
+
+    def get_model_info(self) -> Dict[str, Any]:
         """Get information about loaded models"""
         return {
             "loaded_models": list(self.models.keys()),
             "is_loaded": self.is_loaded,
-            "framework": "Spark MLlib",
-            "hdfs_path": self.hdfs_model_path,
+            "model_path": self.hdfs_model_path,
             "spark_version": self.spark.version,
-            "model_count": len(self.models)
+            "total_models": len(self.models)
         }
 
-    def close(self):
-        """Close Spark session and MongoDB connection"""
-        if hasattr(self, 'spark'):
-            self.spark.stop()
-        if hasattr(self, 'mongo_client'):
-            self.mongo_client.close()
-
-# Global service instance
+# Global MLlib service instance
 _mllib_service = None
 
 def get_mllib_service() -> SparkMLlibService:
-    """Get global MLlib service instance"""
+    """Get or create MLlib service instance"""
     global _mllib_service
     if _mllib_service is None:
         _mllib_service = SparkMLlibService()
     return _mllib_service
 
-def initialize_mllib_service(mongo_uri: str, db_name: str) -> SparkMLlibService:
-    """Initialize MLlib service with specific configuration"""
+def initialize_mllib_service():
+    """Initialize MLlib service"""
     global _mllib_service
-    _mllib_service = SparkMLlibService(mongo_uri, db_name)
+    _mllib_service = SparkMLlibService()
     return _mllib_service

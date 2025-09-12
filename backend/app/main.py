@@ -66,7 +66,7 @@ async def startup_event():
         print("✅ MongoDB connection successful")
         
         # Initialize MLlib services
-        mllib_service = initialize_mllib_service(MONGO_URI, DB_NAME)
+        mllib_service = initialize_mllib_service()
         advanced_clustering_service = get_advanced_clustering_service()
         regression_service = get_regression_service()
         print("🤖 Spark MLlib service initialized")
@@ -374,7 +374,7 @@ async def mllib_predict_trending(video_data: VideoMLlibInput):
         video_dict['comment_ratio'] = video_dict['comment_count'] / max(video_dict['views'], 1)
         video_dict['engagement_score'] = (video_dict['likes'] + video_dict['comment_count']) / max(video_dict['views'], 1)
         
-        result = mllib_service.predict_trending(video_dict, selected_model)
+        result = mllib_service.predict_trending(video_dict)
         
         return {
             "prediction": result,
