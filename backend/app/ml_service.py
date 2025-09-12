@@ -1,54 +1,34 @@
 """
 Machine Learning Service
-Description: AI predictions using Spark MLlib models from HDFS
 """
 
 from typing import Dict, Any
 from fastapi import HTTPException
-from pymongo import MongoClient
-from pyspark.sql import SparkSession
 from pyspark.ml import PipelineModel
 from pyspark.sql.types import StructType, StructField, DoubleType, IntegerType
-import os
-import importlib.util
+
+from spark.core.spark_manager import get_spark_session, PRODUCTION_CONFIGS
+from spark.core.database_manager import get_database_connection
 
 
 class MLService:
-    def __init__(self, mongo_uri: str = "mongodb://localhost:27017/", db_name: str = "youtube_trending"):
-        """Initialize ML service with Spark MLlib"""
-        self.mongo_client = MongoClient(mongo_uri)
-        self.db = self.mongo_client[db_name]
-        
-        # Spark session for ML
+    def __init__(self):
+        self.db = get_database_connection()
         self.spark = None
         self.models = {}
         self.is_trained = False
-        
-        # Initialize Spark and load models
+
         self._init_spark()
         self.load_models_from_hdfs()
 
     def _init_spark(self):
-        """Initialize Spark session for ML operations"""
         try:
-            self.spark = SparkSession.builder \
-                .appName("YouTubeMLService") \
-                .master("local[*]") \
-                .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
-                .config("spark.sql.adaptive.enabled", "true") \
-                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-                .getOrCreate()
-            
-            # Set log level to reduce noise
-            self.spark.sparkContext.setLogLevel("WARN")
-            print("✅ Spark session initialized for ML service")
-            
+            self.spark = get_spark_session("YouTubeMLService", PRODUCTION_CONFIGS["ml_inference"])
         except Exception as e:
-            print(f"❌ Failed to initialize Spark: {str(e)}")
             raise HTTPException(status_code=503, detail="Spark initialization failed")
 
     def load_models_from_hdfs(self) -> bool:
-        """Load trained Spark MLlib models from HDFS"""
+        """Load trained models from HDFS"""
         try:
             if not self.spark:
                 raise HTTPException(status_code=503, detail="Spark session not initialized")
@@ -65,41 +45,29 @@ class MLService:
                     model = PipelineModel.load(hdfs_path)
                     self.models[model_name] = model
                     loaded_count += 1
-                    print(f"✅ Loaded {model_name} from HDFS ({len(model.stages)} stages)")
-                except Exception as e:
-                    print(f"❌ Failed to load {model_name}: {str(e)}")
+                except Exception:
+                    pass
             
             self.is_trained = loaded_count == 3
-            
-            if self.is_trained:
-                print(f"🚀 All {loaded_count} Spark MLlib models loaded from HDFS")
-                return True
-            else:
-                print(f"⚠️ Only {loaded_count}/3 models loaded. Train models first.")
-                return False
+            return self.is_trained
                 
-        except Exception as e:
-            print(f"❌ Failed to load models from HDFS: {str(e)}")
+        except Exception:
             self.is_trained = False
             return False
 
     def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict if a video will be trending using Spark MLlib"""
         try:
             if not self.is_trained or "trending_classifier" not in self.models:
                 raise HTTPException(status_code=503, detail="Trending classifier not available. Train models first.")
             
-            # Create DataFrame from input data
             input_df = self._create_spark_dataframe(video_data)
             
-            # Get model and predict
             model = self.models["trending_classifier"]
             predictions = model.transform(input_df)
             
-            # Extract results
             result = predictions.select("prediction", "probability").collect()[0]
             prediction = int(result["prediction"])
-            probability = float(result["probability"][1])  # Probability of class 1 (trending)
+            probability = float(result["probability"][1])
             
             return {
                 "trending_probability": probability,
@@ -109,26 +77,21 @@ class MLService:
             }
                 
         except Exception as e:
-            print(f"❌ Trending prediction failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict view count using Spark MLlib regression"""
         try:
             if not self.is_trained or "views_regressor" not in self.models:
                 raise HTTPException(status_code=503, detail="Views regressor not available. Train models first.")
             
-            # Create DataFrame from input data
             input_df = self._create_regression_dataframe(video_data)
             
-            # Get model and predict
             model = self.models["views_regressor"]
             predictions = model.transform(input_df)
             
-            # Extract results
             result = predictions.select("prediction").collect()[0]
             predicted_log_views = float(result["prediction"])
-            predicted_views = int(max(0, predicted_log_views))  # Convert from log scale if needed
+            predicted_views = int(max(0, predicted_log_views))
             
             return {
                 "predicted_views": predicted_views,
@@ -137,27 +100,21 @@ class MLService:
             }
                 
         except Exception as e:
-            print(f"❌ Views prediction failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_cluster(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict content cluster using Spark MLlib clustering"""
         try:
             if not self.is_trained or "content_clusterer" not in self.models:
                 raise HTTPException(status_code=503, detail="Content clusterer not available. Train models first.")
             
-            # Create DataFrame from input data
             input_df = self._create_clustering_dataframe(video_data)
             
-            # Get model and predict
             model = self.models["content_clusterer"]
             predictions = model.transform(input_df)
             
-            # Extract results
             result = predictions.select("cluster").collect()[0]
             cluster = int(result["cluster"])
             
-            # Map cluster to content type
             cluster_types = {
                 0: "Entertainment",
                 1: "Educational", 
@@ -178,11 +135,9 @@ class MLService:
             }
                 
         except Exception as e:
-            print(f"❌ Clustering failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def _create_spark_dataframe(self, video_data: Dict[str, Any]):
-        """Create Spark DataFrame for trending prediction"""
         return self._create_trending_dataframe(video_data)
 
     def _create_trending_dataframe(self, video_data: Dict[str, Any]):
@@ -222,11 +177,9 @@ class MLService:
             return self.spark.createDataFrame([tuple(features.values())], schema)
             
         except Exception as e:
-            print(f"❌ Failed to create trending DataFrame: {str(e)}")
             raise HTTPException(status_code=400, detail="Invalid input data format")
 
     def _create_regression_dataframe(self, video_data: Dict[str, Any]):
-        """Create DataFrame for views regression model"""
         try:
             views = max(float(video_data.get("views", 1)), 1)
             likes = float(video_data.get("likes", 0))
@@ -259,11 +212,9 @@ class MLService:
             return self.spark.createDataFrame([tuple(features.values())], schema)
             
         except Exception as e:
-            print(f"❌ Failed to create regression DataFrame: {str(e)}")
             raise HTTPException(status_code=400, detail="Invalid input data format")
 
     def _create_clustering_dataframe(self, video_data: Dict[str, Any]):
-        """Create DataFrame for content clustering model"""
         try:
             views = max(float(video_data.get("views", 1)), 1)
             likes = float(video_data.get("likes", 0))
@@ -298,7 +249,6 @@ class MLService:
             return self.spark.createDataFrame([tuple(features.values())], schema)
             
         except Exception as e:
-            print(f"❌ Failed to create clustering DataFrame: {str(e)}")
             raise HTTPException(status_code=400, detail="Invalid input data format")
 
     def train_models(self) -> bool:
@@ -315,8 +265,6 @@ class MLService:
             if training_data_count < 1000:
                 raise HTTPException(status_code=400, detail=f"Insufficient training data: {training_data_count} records")
             
-            print(f"🤖 Training request received with {training_data_count} records...")
-            
             # Path to training script - use absolute path from project root
             current_dir = os.path.dirname(os.path.abspath(__file__))
             project_root = os.path.dirname(os.path.dirname(current_dir))
@@ -326,41 +274,24 @@ class MLService:
             if not os.path.exists(script_path):
                 raise HTTPException(status_code=500, detail=f"Training script not found at: {script_path}")
             
-            print(f"📁 Training script path: {script_path}")
-            
             # Check if spark-submit is available
             import shutil
             spark_submit_path = shutil.which('spark-submit')
             if not spark_submit_path:
                 raise HTTPException(status_code=500, detail="spark-submit not found in PATH. Please ensure Apache Spark is installed and in PATH.")
             
-            print(f"✅ Spark-submit found at: {spark_submit_path}")
-            
             # Run training with spark-submit
             cmd = f"spark-submit {script_path}"
-            print(f"📋 Full command: {cmd}")
-            print(f"📂 Working directory: {project_root}")
-            print(f"📄 Script exists: {os.path.exists(script_path)}")
-            
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=project_root)
             
-            print(f"📊 Return code: {result.returncode}")
-            if result.stdout:
-                print(f"📝 STDOUT: {result.stdout}")
-            if result.stderr:
-                print(f"❌ STDERR: {result.stderr}")
-            
             if result.returncode == 0:
-                print("✅ Training completed successfully")
                 # Reload models after training
                 self.load_models_from_hdfs()
                 return True
             else:
-                print(f"❌ Training failed: {result.stderr}")
                 raise HTTPException(status_code=500, detail=f"Training failed: {result.stderr}")
             
         except Exception as e:
-            print(f"❌ Training failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
 
     def get_model_info(self) -> Dict[str, Any]:

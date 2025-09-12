@@ -32,7 +32,7 @@ const ModelEvaluation = () => {
       setDbStats(statsData);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error("Failed to load model evaluation data:", err);
+      // Error handled by ApiContext
     }
   }, [checkMLHealth, fetchDatabaseStats]);
 

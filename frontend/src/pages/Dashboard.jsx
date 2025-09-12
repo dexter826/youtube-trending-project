@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, 
   Eye, 
@@ -31,7 +31,7 @@ const Dashboard = () => {
   const [mlHealth, setMlHealth] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       // Load all dashboard data
       const [statsData, countriesData, dbData, mlData] = await Promise.all([
@@ -47,13 +47,13 @@ const Dashboard = () => {
       setMlHealth(mlData);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Failed to load dashboard data:', err);
+      // Error handled by ApiContext
     }
-  };
+  }, [selectedCountry, fetchStatistics, fetchCountries, fetchDatabaseStats, checkMLHealth]);
 
   useEffect(() => {
     loadDashboardData();
-  }, [selectedCountry]);
+  }, [loadDashboardData]);
 
   const formatNumber = (num) => {
     if (num >= 1000000) {

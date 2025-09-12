@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -10,8 +10,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from "recharts";
 import {
   Filter,
@@ -33,7 +31,6 @@ const TrendingAnalysis = () => {
     fetchTrendingVideos,
     fetchCountries,
     fetchCategories,
-    fetchWordcloudData,
     loading,
     error,
   } = useApi();
@@ -41,35 +38,31 @@ const TrendingAnalysis = () => {
   const [videos, setVideos] = useState([]);
   const [countries, setCountries] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [wordcloudData, setWordcloudData] = useState([]);
   const [filters, setFilters] = useState({
     country: "",
     category: "",
     limit: 50,
   });
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
-      const [videosData, countriesData, categoriesData, wordcloudResult] =
-        await Promise.all([
-          fetchTrendingVideos(filters),
-          fetchCountries(),
-          fetchCategories(),
-          fetchWordcloudData(filters.country || null),
-        ]);
+      const [videosData, countriesData, categoriesData] = await Promise.all([
+        fetchTrendingVideos(filters),
+        fetchCountries(),
+        fetchCategories(),
+      ]);
 
       setVideos(videosData.videos || []);
       setCountries(countriesData.countries || []);
       setCategories(categoriesData.categories || []);
-      setWordcloudData(wordcloudResult.wordcloud_data || []);
     } catch (err) {
-      console.error("Failed to load trending analysis data:", err);
+      // Error handled by ApiContext
     }
-  };
+  }, [filters, fetchTrendingVideos, fetchCountries, fetchCategories]);
 
   useEffect(() => {
     loadData();
-  }, [filters]);
+  }, [loadData]);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));

@@ -29,7 +29,6 @@ export const ApiProvider = ({ children }) => {
       setApiHealth(response.data);
       return response.data;
     } catch (err) {
-      console.error('API Health Check Failed:', err);
       setApiHealth({ status: 'unhealthy', error: err.message });
       return null;
     }

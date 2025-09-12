@@ -51,7 +51,7 @@ const PredictionPage = () => {
         setMlHealth(healthData);
         setCategories(categoriesData.categories || []);
       } catch (err) {
-        console.error("Failed to load initial data:", err);
+        // Error handled by ApiContext
       }
     };
 
@@ -92,7 +92,7 @@ const PredictionPage = () => {
           break;
       }
     } catch (err) {
-      console.error(`Failed to predict ${type}:`, err);
+      // Error handled by ApiContext
     }
   };
 
@@ -110,7 +110,7 @@ const PredictionPage = () => {
         cluster: clusterResult,
       });
     } catch (err) {
-      console.error("Failed to predict all:", err);
+      // Error handled by ApiContext
     }
   };
 

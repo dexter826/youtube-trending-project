@@ -1,10 +1,7 @@
-# Spark Jobs Requirements
 pyspark==3.5.0
 pymongo==4.6.0
 pandas==2.1.4
 numpy==1.24.3
-
-# Machine Learning Requirements
 scikit-learn>=1.3.0
 joblib>=1.3.0
 matplotlib>=3.7.0
