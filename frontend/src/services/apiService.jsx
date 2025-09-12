@@ -111,7 +111,7 @@ const apiService = {
   },
 
   // ============================================================================
-  // MACHINE LEARNING ENDPOINTS  
+  // MACHINE LEARNING ENDPOINTS
   // ============================================================================
 
   // Get ML service health
@@ -170,7 +170,7 @@ const apiService = {
 
   // Get available dates for a country
   async getDates(country = null) {
-    const endpoint = country ? `/dates?country=${country}` : '/dates';
+    const endpoint = country ? `/dates?country=${country}` : "/dates";
     const response = await api.get(endpoint);
     return response.data;
   },

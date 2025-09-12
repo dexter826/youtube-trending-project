@@ -40,11 +40,11 @@ const MLPredictor = () => {
     try {
       setLoadingCategories(true);
       const data = await apiService.getCategories();
-      
+
       // Convert array to object for easier lookup
       const categoriesObj = {};
       if (data.categories && Array.isArray(data.categories)) {
-        data.categories.forEach(cat => {
+        data.categories.forEach((cat) => {
           categoriesObj[cat.id] = cat.name;
         });
       }

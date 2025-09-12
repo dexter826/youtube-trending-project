@@ -1,10 +1,15 @@
-import React from 'react';
-import TrendingVideosChart from './TrendingVideosChart';
-import WordCloudComponent from './WordCloudComponent';
-import StatisticsPanel from './StatisticsPanel';
-import VideoTable from './VideoTable';
+import React from "react";
+import TrendingVideosChart from "./TrendingVideosChart";
+import WordCloudComponent from "./WordCloudComponent";
+import StatisticsPanel from "./StatisticsPanel";
+import VideoTable from "./VideoTable";
 
-const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate }) => {
+const Dashboard = ({
+  trendingData,
+  wordcloudData,
+  selectedCountry,
+  selectedDate,
+}) => {
   if (!trendingData && !wordcloudData) {
     return null;
   }
@@ -17,13 +22,14 @@ const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate 
           Kết quả phân tích
         </h2>
         <p className="text-gray-600">
-          Dữ liệu YouTube thịnh hành cho <span className="font-medium">{selectedCountry}</span> vào{' '}
+          Dữ liệu YouTube thịnh hành cho{" "}
+          <span className="font-medium">{selectedCountry}</span> vào{" "}
           <span className="font-medium">
-            {new Date(selectedDate).toLocaleDateString('vi-VN', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
+            {new Date(selectedDate).toLocaleDateString("vi-VN", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
             })}
           </span>
         </p>
@@ -74,7 +80,7 @@ const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate 
             <div>
               <span className="font-medium">Đã xử lý:</span>
               <span className="ml-2">
-                {new Date(trendingData.processed_at).toLocaleString('vi-VN')}
+                {new Date(trendingData.processed_at).toLocaleString("vi-VN")}
               </span>
             </div>
           )}
@@ -82,7 +88,7 @@ const Dashboard = ({ trendingData, wordcloudData, selectedCountry, selectedDate 
             <div>
               <span className="font-medium">Đám mây từ khóa được tạo:</span>
               <span className="ml-2">
-                {new Date(wordcloudData.processed_at).toLocaleString('vi-VN')}
+                {new Date(wordcloudData.processed_at).toLocaleString("vi-VN")}
               </span>
             </div>
           )}
