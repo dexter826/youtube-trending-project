@@ -12,7 +12,7 @@ import os
 from bson import ObjectId
 import json
 
-from ml_service import get_ml_service, initialize_ml_service
+from .ml_service import get_ml_service, initialize_ml_service
 
 # Load category mappings
 CATEGORY_MAPPINGS = {}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const ApiContext = createContext();
@@ -23,7 +23,7 @@ export const ApiProvider = ({ children }) => {
   const [apiHealth, setApiHealth] = useState(null);
 
   // API Health Check
-  const checkApiHealth = async () => {
+  const checkApiHealth = useCallback(async () => {
     try {
       const response = await axios.get('/health');
       setApiHealth(response.data);
@@ -32,10 +32,10 @@ export const ApiProvider = ({ children }) => {
       setApiHealth({ status: 'unhealthy', error: err.message });
       return null;
     }
-  };
+  }, []);
 
   // Generic API call wrapper
-  const apiCall = async (method, endpoint, data = null, config = {}) => {
+  const apiCall = useCallback(async (method, endpoint, data = null, config = {}) => {
     setLoading(true);
     setError(null);
     
@@ -55,75 +55,75 @@ export const ApiProvider = ({ children }) => {
       setError(errorMessage);
       throw new Error(errorMessage);
     }
-  };
+  }, []);
 
   // Data fetching methods
-  const fetchTrendingVideos = async (filters = {}) => {
+  const fetchTrendingVideos = useCallback(async (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.country) params.append('country', filters.country);
     if (filters.category) params.append('category', filters.category);
     if (filters.limit) params.append('limit', filters.limit);
     
     return apiCall('GET', `/trending?${params.toString()}`);
-  };
+  }, [apiCall]);
 
-  const fetchStatistics = async (country = null) => {
+  const fetchStatistics = useCallback(async (country = null) => {
     const params = country ? `?country=${country}` : '';
     return apiCall('GET', `/statistics${params}`);
-  };
+  }, [apiCall]);
 
-  const fetchCountries = async () => {
+  const fetchCountries = useCallback(async () => {
     return apiCall('GET', '/countries');
-  };
+  }, [apiCall]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     return apiCall('GET', '/categories');
-  };
+  }, [apiCall]);
 
-  const fetchWordcloudData = async (country = null) => {
+  const fetchWordcloudData = useCallback(async (country = null) => {
     const params = country ? `?country=${country}` : '';
     return apiCall('GET', `/wordcloud${params}`);
-  };
+  }, [apiCall]);
 
-  const fetchDates = async (country = null) => {
+  const fetchDates = useCallback(async (country = null) => {
     const params = country ? `?country=${country}` : '';
     return apiCall('GET', `/dates${params}`);
-  };
+  }, [apiCall]);
 
   // ML Methods
-  const checkMLHealth = async () => {
+  const checkMLHealth = useCallback(async () => {
     return apiCall('GET', '/ml/health');
-  };
+  }, [apiCall]);
 
-  const trainModels = async () => {
+  const trainModels = useCallback(async () => {
     return apiCall('POST', '/ml/train');
-  };
+  }, [apiCall]);
 
-  const predictTrending = async (videoData) => {
+  const predictTrending = useCallback(async (videoData) => {
     return apiCall('POST', '/ml/predict', videoData);
-  };
+  }, [apiCall]);
 
-  const predictViews = async (videoData) => {
+  const predictViews = useCallback(async (videoData) => {
     return apiCall('POST', '/ml/predict-views', videoData);
-  };
+  }, [apiCall]);
 
-  const predictCluster = async (videoData) => {
+  const predictCluster = useCallback(async (videoData) => {
     return apiCall('POST', '/ml/clustering', videoData);
-  };
+  }, [apiCall]);
 
   // Data processing
-  const processData = async () => {
+  const processData = useCallback(async () => {
     return apiCall('POST', '/data/process');
-  };
+  }, [apiCall]);
 
-  const fetchDatabaseStats = async () => {
+  const fetchDatabaseStats = useCallback(async () => {
     return apiCall('GET', '/admin/database-stats');
-  };
+  }, [apiCall]);
 
   // Initialize API health check on mount
   useEffect(() => {
     checkApiHealth();
-  }, []);
+  }, [checkApiHealth]);
 
   const value = {
     // State
