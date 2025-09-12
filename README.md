@@ -48,7 +48,7 @@ CSV Data → HDFS → Spark Processing → MongoDB → FastAPI → React Fronten
 
 - **ReactJS**: Modern UI framework
 - **TailwindCSS**: Utility-first CSS framework
-- **Chart.js**: Data visualization
+- **Recharts**: Data visualization
 - **Lucide React**: Icon library
 
 ## 📁 Cấu trúc project
