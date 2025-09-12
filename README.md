@@ -17,7 +17,7 @@ CSV Data → HDFS → Spark Processing → MongoDB → FastAPI → React Fronten
 ### Luồng xử lý chính:
 
 1. **Data Ingestion**: Upload CSV data vào HDFS distributed storage
-2. **Spark Processing**: Xử lý dữ liệu lớn với Apache Spark cluster  
+2. **Spark Processing**: Xử lý dữ liệu lớn với Apache Spark cluster
 3. **ML Training**: Huấn luyện models với Spark MLlib (Trending, Views, Clustering)
 4. **Model Storage**: Lưu trained PipelineModels vào HDFS
 5. **Data Storage**: Lưu processed data và metadata vào MongoDB
@@ -27,21 +27,25 @@ CSV Data → HDFS → Spark Processing → MongoDB → FastAPI → React Fronten
 ## ⚙️ Công nghệ stack
 
 ### Big Data Core:
+
 - **Apache Spark**: Distributed data processing engine
 - **HDFS**: Hadoop Distributed File System cho data storage
 - **MongoDB**: Document database cho processed data
 
 ### Machine Learning:
+
 - **Spark MLlib**: Distributed ML library (PipelineModel, RandomForest, KMeans)
 - **HDFS Model Storage**: Trained models stored in distributed file system
 - **Feature Engineering**: Advanced feature extraction và scaling with Spark
 
 ### Backend & API:
+
 - **FastAPI**: Modern Python web framework
 - **Uvicorn**: ASGI server
 - **Pydantic**: Data validation
 
 ### Frontend:
+
 - **ReactJS**: Modern UI framework
 - **TailwindCSS**: Utility-first CSS framework
 - **Chart.js**: Data visualization
@@ -84,6 +88,7 @@ youtube-trending-project/
 ## 🛠️ Cài đặt và khởi chạy
 
 ### Yêu cầu hệ thống:
+
 - Windows 10/11
 - Java 8/11
 - Python 3.8+
@@ -161,6 +166,7 @@ npm start
 ## 📊 Features chính
 
 ### 1. Data Analytics Dashboard
+
 - **Multi-country analysis**: 10 quốc gia (US, CA, GB, DE, FR, IN, JP, KR, MX, RU)
 - **Interactive filtering**: Theo country và category
 - **Real-time statistics**: Views, likes, comments aggregation
@@ -168,12 +174,14 @@ npm start
 - **Trending charts**: Video performance metrics
 
 ### 2. Machine Learning Predictions
+
 - **Trending Prediction**: Dự đoán video có trending không
 - **View Count Prediction**: Ước tính số lượt xem
 - **Content Clustering**: Phân nhóm video theo nội dung
 - **Model Training**: Auto-train với Spark processed data
 
 ### 3. Big Data Processing
+
 - **Distributed Storage**: HDFS cho large datasets
 - **Spark Processing**: Fast parallel data processing
 - **Scalable Architecture**: Handle millions of records
@@ -182,26 +190,31 @@ npm start
 ## 🤖 Machine Learning Models
 
 ### Model Architecture:
+
 - **Trending Classifier**: Spark MLlib RandomForestClassificationModel (Binary classification)
-- **Views Regressor**: Spark MLlib RandomForestRegressionModel (Regression) 
+- **Views Regressor**: Spark MLlib RandomForestRegressionModel (Regression)
 - **Content Clusterer**: Spark MLlib KMeansModel (Unsupervised clustering)
 
 ### PipelineModel Structure:
+
 1. **VectorAssembler**: Feature vector assembly
 2. **StandardScaler**: Feature normalization
 3. **ML Algorithm**: RandomForest/KMeans prediction
 
 ### Features được sử dụng:
+
 - **Trending Model**: like_ratio, dislike_ratio, comment_ratio, engagement_score, title_length, has_caps, tag_count, category_id
-- **Views Model**: likes, dislikes, comment_count, like_ratio, engagement_score, title_length, tag_count, category_id  
+- **Views Model**: likes, dislikes, comment_count, like_ratio, engagement_score, title_length, tag_count, category_id
 - **Clustering Model**: log_views, log_likes, log_comments, like_ratio, engagement_score, title_length, tag_count
 
 ### Model Storage:
+
 - **HDFS Location**: hdfs://localhost:9000/youtube_trending/models/
 - **Format**: Spark MLlib PipelineModel
 - **Models**: trending_prediction, regression, clustering
 
 ### Model Performance:
+
 - **Trending Prediction**: Distributed training with Spark MLlib
 - **Views Prediction**: Scalable regression with feature engineering
 - **Clustering**: K-means with optimal cluster selection
@@ -209,6 +222,7 @@ npm start
 ## 🗃️ Database Schema
 
 ### MongoDB Collections:
+
 - `raw_videos`: Original CSV data (375,940 records)
 - `trending_results`: Processed trending analysis (1,967 records)
 - `wordcloud_data`: Title keyword frequencies
@@ -218,24 +232,28 @@ npm start
 ## 🚀 API Endpoints
 
 ### Data Endpoints:
+
 - `GET /countries` - Available countries
 - `GET /trending` - Trending videos with filters
 - `GET /statistics` - Aggregated analytics
 - `GET /wordcloud` - Word cloud data
 
 ### ML Endpoints:
+
 - `POST /ml/train` - Train ML models
 - `POST /ml/predict` - Trending prediction
 - `POST /ml/predict-views` - View count prediction
 - `POST /ml/clustering` - Content clustering
 
 ### System Endpoints:
+
 - `GET /health` - System health check
 - `POST /data/process` - Trigger Spark processing
 
 ## 🔧 Configuration
 
 ### Spark Configuration:
+
 ```python
 spark_config = {
     "spark.master": "local[*]",
@@ -246,6 +264,7 @@ spark_config = {
 ```
 
 ### MongoDB Configuration:
+
 ```python
 MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "youtube_trending"
@@ -274,7 +293,7 @@ DB_NAME = "youtube_trending"
 ✅ **Clean Code**: No legacy code, fallback logic removed  
 ✅ **Scalable Design**: Handle large datasets efficiently  
 ✅ **Modern Stack**: Latest technologies và best practices  
-✅ **Full Stack**: Complete end-to-end solution  
+✅ **Full Stack**: Complete end-to-end solution
 
 ## 🔄 Future Enhancements
 
@@ -288,6 +307,7 @@ DB_NAME = "youtube_trending"
 ## 👨‍💻 Developer Notes
 
 Dự án được thiết kế theo principles:
+
 - **Clean Architecture**: Separation of concerns
 - **Scalability First**: Built for large-scale data
 - **Production Ready**: Enterprise-level code quality
