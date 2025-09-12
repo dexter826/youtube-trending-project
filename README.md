@@ -11,17 +11,18 @@ Dự án phân tích video thịnh hành trên YouTube từ nhiều quốc gia, 
 ```
 CSV Data → HDFS → Spark Processing → MongoDB → FastAPI → React Frontend
                       ↓
-                 ML Training (scikit-learn) → Model Storage
+              Spark MLlib Training → HDFS Model Storage
 ```
 
 ### Luồng xử lý chính:
 
 1. **Data Ingestion**: Upload CSV data vào HDFS distributed storage
 2. **Spark Processing**: Xử lý dữ liệu lớn với Apache Spark cluster  
-3. **ML Training**: Huấn luyện models với scikit-learn (Trending, Views, Clustering)
-4. **Data Storage**: Lưu processed data và metadata vào MongoDB
-5. **API Layer**: FastAPI backend cung cấp REST APIs và ML predictions
-6. **Frontend**: React dashboard với analytics và ML prediction interface
+3. **ML Training**: Huấn luyện models với Spark MLlib (Trending, Views, Clustering)
+4. **Model Storage**: Lưu trained PipelineModels vào HDFS
+5. **Data Storage**: Lưu processed data và metadata vào MongoDB
+6. **API Layer**: FastAPI backend cung cấp REST APIs và ML predictions
+7. **Frontend**: React dashboard với analytics và ML prediction interface
 
 ## ⚙️ Công nghệ stack
 
@@ -31,8 +32,9 @@ CSV Data → HDFS → Spark Processing → MongoDB → FastAPI → React Fronten
 - **MongoDB**: Document database cho processed data
 
 ### Machine Learning:
-- **scikit-learn**: ML models (RandomForest, KMeans)
-- **Feature Engineering**: Advanced feature extraction và scaling
+- **Spark MLlib**: Distributed ML library (PipelineModel, RandomForest, KMeans)
+- **HDFS Model Storage**: Trained models stored in distributed file system
+- **Feature Engineering**: Advanced feature extraction và scaling with Spark
 
 ### Backend & API:
 - **FastAPI**: Modern Python web framework
@@ -93,14 +95,17 @@ youtube-trending-project/
 ### 1. Khởi động Big Data infrastructure:
 
 ```bash
-# Start HDFS
-start-dfs.cmd
+# Start HDFS services
+C:\hadoop-3.4.1\sbin\start-dfs.cmd
 
-# Start Spark cluster  
-start-all.cmd
+# Verify HDFS running
+hdfs dfsadmin -report
 
 # Start MongoDB
 mongod
+
+# Verify services
+jps  # Should show NameNode and DataNode
 ```
 
 ### 2. Setup và chạy pipeline:
@@ -177,19 +182,29 @@ npm start
 ## 🤖 Machine Learning Models
 
 ### Model Architecture:
-- **Trending Classifier**: RandomForestClassifier (Binary classification)
-- **Views Regressor**: RandomForestRegressor (Regression) 
-- **Content Clusterer**: KMeans (Unsupervised clustering)
+- **Trending Classifier**: Spark MLlib RandomForestClassificationModel (Binary classification)
+- **Views Regressor**: Spark MLlib RandomForestRegressionModel (Regression) 
+- **Content Clusterer**: Spark MLlib KMeansModel (Unsupervised clustering)
+
+### PipelineModel Structure:
+1. **VectorAssembler**: Feature vector assembly
+2. **StandardScaler**: Feature normalization
+3. **ML Algorithm**: RandomForest/KMeans prediction
 
 ### Features được sử dụng:
-- Engagement metrics: likes, comments, like_ratio
-- Content features: title_length, tag_count, category_id
-- Temporal features: publish timing, trending duration
+- **Trending Model**: like_ratio, dislike_ratio, comment_ratio, engagement_score, title_length, has_caps, tag_count, category_id
+- **Views Model**: likes, dislikes, comment_count, like_ratio, engagement_score, title_length, tag_count, category_id  
+- **Clustering Model**: log_views, log_likes, log_comments, like_ratio, engagement_score, title_length, tag_count
+
+### Model Storage:
+- **HDFS Location**: hdfs://localhost:9000/youtube_trending/models/
+- **Format**: Spark MLlib PipelineModel
+- **Models**: trending_prediction, regression, clustering
 
 ### Model Performance:
-- **Trending Prediction**: AUC > 0.76
-- **Views Prediction**: R² > 0.65
-- **Clustering**: Silhouette score > 0.33
+- **Trending Prediction**: Distributed training with Spark MLlib
+- **Views Prediction**: Scalable regression with feature engineering
+- **Clustering**: K-means with optimal cluster selection
 
 ## 🗃️ Database Schema
 
