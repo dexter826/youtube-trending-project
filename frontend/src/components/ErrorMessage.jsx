@@ -1,25 +1,37 @@
 import React from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 
-const ErrorMessage = ({ message, onDismiss }) => {
+const ErrorMessage = ({ message, onClose, type = 'error' }) => {
+  const typeStyles = {
+    error: 'bg-red-50 border-red-200 text-red-800',
+    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800'
+  };
+
+  const iconStyles = {
+    error: 'text-red-500',
+    warning: 'text-yellow-500',
+    info: 'text-blue-500'
+  };
+
   return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+    <div className={`rounded-lg border p-4 ${typeStyles[type]} animate-slide-up`}>
       <div className="flex items-start">
-        <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+        <AlertCircle className={`w-5 h-5 mt-0.5 mr-3 ${iconStyles[type]}`} />
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-red-800 mb-1">
-            Lỗi
-          </h3>
-          <p className="text-sm text-red-700">
+          <p className="text-sm font-medium">
+            {type === 'error' && 'Lỗi: '}
+            {type === 'warning' && 'Cảnh báo: '}
+            {type === 'info' && 'Thông tin: '}
             {message}
           </p>
         </div>
-        {onDismiss && (
+        {onClose && (
           <button
-            onClick={onDismiss}
-            className="ml-3 flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
+            onClick={onClose}
+            className={`ml-3 ${iconStyles[type]} hover:opacity-75`}
           >
-            <X className="h-4 w-4" />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>

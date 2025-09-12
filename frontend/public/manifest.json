@@ -1,5 +1,5 @@
 {
-  "short_name": "YouTube Trending",
+  "short_name": "YouTube Analytics",
   "name": "YouTube Trending Analytics",
   "icons": [
     {
@@ -10,6 +10,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#ff0000",
+  "theme_color": "#000000",
   "background_color": "#ffffff"
 }
