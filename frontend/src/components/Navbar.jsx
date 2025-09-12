@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Brain, 
-  Settings, 
-  Menu, 
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  BarChart3,
+  TrendingUp,
+  Brain,
+  Settings,
+  Menu,
   X,
-  Youtube
-} from 'lucide-react';
-import { useApi } from '../context/ApiContext';
+  Youtube,
+} from "lucide-react";
+import { useApi } from "../context/ApiContext";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,10 +17,10 @@ const Navbar = () => {
   const { apiHealth } = useApi();
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: BarChart3 },
-    { name: 'Phân tích Trending', href: '/analysis', icon: TrendingUp },
-    { name: 'Dự đoán Video', href: '/prediction', icon: Brain },
-    { name: 'Đánh giá Mô hình', href: '/evaluation', icon: Settings },
+    { name: "Dashboard", href: "/", icon: BarChart3 },
+    { name: "Phân tích Trending", href: "/analysis", icon: TrendingUp },
+    { name: "Dự đoán Video", href: "/prediction", icon: Brain },
+    { name: "Đánh giá Mô hình", href: "/evaluation", icon: Settings },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -36,7 +36,7 @@ const Navbar = () => {
                 <Youtube className="w-6 h-6 text-white" />
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-gradient">
+                <h1 className="text-xl font-bold text-red-600">
                   YouTube Analytics
                 </h1>
                 <p className="text-xs text-gray-500">Big Data & ML Platform</p>
@@ -54,8 +54,8 @@ const Navbar = () => {
                   to={item.href}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
                     isActive(item.href)
-                      ? 'bg-primary-100 text-primary-700 border border-primary-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? "bg-primary-100 text-primary-700 border border-primary-200"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -69,11 +69,15 @@ const Navbar = () => {
           <div className="flex items-center space-x-4">
             {/* API Status Indicator */}
             <div className="hidden sm:flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
-                apiHealth?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  apiHealth?.status === "healthy"
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                }`}
+              />
               <span className="text-xs text-gray-500">
-                API {apiHealth?.status === 'healthy' ? 'Online' : 'Offline'}
+                API {apiHealth?.status === "healthy" ? "Online" : "Offline"}
               </span>
             </div>
 
@@ -105,8 +109,8 @@ const Navbar = () => {
                   onClick={() => setIsOpen(false)}
                   className={`flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
                     isActive(item.href)
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? "bg-primary-100 text-primary-700"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -114,14 +118,19 @@ const Navbar = () => {
                 </Link>
               );
             })}
-            
+
             {/* Mobile API Status */}
             <div className="flex items-center space-x-3 px-3 py-2">
-              <div className={`w-3 h-3 rounded-full ${
-                apiHealth?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  apiHealth?.status === "healthy"
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                }`}
+              />
               <span className="text-sm text-gray-500">
-                API Status: {apiHealth?.status === 'healthy' ? 'Online' : 'Offline'}
+                API Status:{" "}
+                {apiHealth?.status === "healthy" ? "Online" : "Offline"}
               </span>
             </div>
           </div>
