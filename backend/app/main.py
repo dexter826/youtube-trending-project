@@ -15,9 +15,9 @@ from bson import ObjectId
 import json
 
 # Import ML services
-from ml_api import get_mllib_service, initialize_mllib_service
-from clustering_api import get_advanced_clustering_service
-from regression_api import get_regression_service, ViewPredictionRequest
+from .ml_api import get_mllib_service, initialize_mllib_service
+from .clustering_api import get_advanced_clustering_service
+from .regression_api import get_regression_service, ViewPredictionRequest
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")

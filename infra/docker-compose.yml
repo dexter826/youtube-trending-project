@@ -34,50 +34,45 @@ services:
 
   # HDFS NameNode
   hdfs-namenode:
-    image: apache/hadoop:3.3.5
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: youtube-hdfs-namenode
     hostname: namenode
     environment:
       - CLUSTER_NAME=youtube-hadoop
-      - HDFS_CONF_dfs_nameservices=hdfscluster
-      - HDFS_CONF_dfs_ha_namenodes_hdfscluster=nn1
-      - HDFS_CONF_dfs_namenode_rpc_address_hdfscluster_nn1=namenode:9000
-      - HDFS_CONF_dfs_namenode_http_address_hdfscluster_nn1=namenode:9870
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
       - HDFS_CONF_dfs_replication=1
-      - HDFS_CONF_dfs_namenode_name_dir=/hadoop/dfs/name
+      - HDFS_CONF_dfs_permissions_enabled=false
     ports:
       - "9870:9870"  # NameNode Web UI
       - "9000:9000"  # NameNode RPC
     volumes:
       - hdfs_namenode:/hadoop/dfs/name
       - ../data:/input-data  # Mount local data for initial upload
-    command: ["hdfs", "namenode"]
     networks:
       - youtube-network
 
   # HDFS DataNode
   hdfs-datanode:
-    image: apache/hadoop:3.3.5
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: youtube-hdfs-datanode
     hostname: datanode
     environment:
-      - HDFS_CONF_dfs_datanode_data_dir=/hadoop/dfs/data
-      - HDFS_CONF_dfs_namenode_rpc_address=namenode:9000
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
       - HDFS_CONF_dfs_replication=1
+      - HDFS_CONF_dfs_permissions_enabled=false
     volumes:
       - hdfs_datanode:/hadoop/dfs/data
     depends_on:
       - hdfs-namenode
-    command: ["hdfs", "datanode"]
     networks:
       - youtube-network
 
   # HDFS Data Uploader (One-time initialization)
   hdfs-init:
-    image: apache/hadoop:3.3.5
+    image: bde2020/hadoop-base:2.0.0-hadoop3.2.1-java8
     container_name: youtube-hdfs-init
     environment:
-      - HDFS_CONF_dfs_namenode_rpc_address=namenode:9000
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
     volumes:
       - ../data:/input-data
       - ./hdfs-init.sh:/hdfs-init.sh
