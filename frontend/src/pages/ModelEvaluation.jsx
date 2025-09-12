@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Settings, 
   Brain, 
   Database, 
-  Play, 
   CheckCircle, 
   AlertCircle,
   BarChart3,
   TrendingUp,
-  Zap,
   RefreshCw,
   HardDrive,
   Activity
@@ -20,20 +17,16 @@ import ErrorMessage from '../components/ErrorMessage';
 const ModelEvaluation = () => {
   const { 
     checkMLHealth, 
-    trainModels, 
     fetchDatabaseStats,
-    processData,
     loading, 
     error 
   } = useApi();
 
   const [mlHealth, setMlHealth] = useState(null);
   const [dbStats, setDbStats] = useState(null);
-  const [trainingResult, setTrainingResult] = useState(null);
-  const [processingResult, setProcessingResult] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [healthData, statsData] = await Promise.all([
         checkMLHealth(),
@@ -46,37 +39,11 @@ const ModelEvaluation = () => {
     } catch (err) {
       console.error('Failed to load model evaluation data:', err);
     }
-  };
+  }, [checkMLHealth, fetchDatabaseStats]);
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  const handleTrainModels = async () => {
-    try {
-      const result = await trainModels();
-      setTrainingResult(result);
-      // Reload ML health after training
-      const healthData = await checkMLHealth();
-      setMlHealth(healthData);
-    } catch (err) {
-      console.error('Training failed:', err);
-      setTrainingResult({ status: 'error', message: err.message });
-    }
-  };
-
-  const handleProcessData = async () => {
-    try {
-      const result = await processData();
-      setProcessingResult(result);
-      // Reload database stats after processing
-      const statsData = await fetchDatabaseStats();
-      setDbStats(statsData);
-    } catch (err) {
-      console.error('Data processing failed:', err);
-      setProcessingResult({ status: 'error', message: err.message });
-    }
-  };
+  }, [loadData]);
 
   const formatNumber = (num) => {
     if (num >= 1000000) {
@@ -139,105 +106,6 @@ const ModelEvaluation = () => {
       </div>
 
       {error && <ErrorMessage message={error} />}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="card">
-          <div className="flex items-center space-x-2 mb-4">
-            <Database className="w-5 h-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
-              Xử lý Dữ liệu
-            </h3>
-          </div>
-          
-          <p className="text-gray-600 mb-4">
-            Xử lý dữ liệu thô bằng Apache Spark để chuẩn bị cho việc huấn luyện mô hình.
-          </p>
-          
-          <button
-            onClick={handleProcessData}
-            disabled={loading}
-            className="btn-primary w-full flex items-center justify-center space-x-2"
-          >
-            <Play className="w-4 h-4" />
-            <span>Xử lý Dữ liệu</span>
-          </button>
-          
-          {processingResult && (
-            <div className={`mt-4 p-3 rounded-lg ${
-              processingResult.status === 'success' 
-                ? 'bg-green-50 border border-green-200' 
-                : 'bg-red-50 border border-red-200'
-            }`}>
-              <div className="flex items-center space-x-2">
-                {processingResult.status === 'success' ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                )}
-                <span className={`text-sm font-medium ${
-                  processingResult.status === 'success' ? 'text-green-800' : 'text-red-800'
-                }`}>
-                  {processingResult.message}
-                </span>
-              </div>
-              {processingResult.input_records && (
-                <p className="text-xs text-gray-600 mt-1">
-                  Đã xử lý {formatNumber(processingResult.input_records)} bản ghi
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="flex items-center space-x-2 mb-4">
-            <Brain className="w-5 h-5 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
-              Huấn luyện Mô hình
-            </h3>
-          </div>
-          
-          <p className="text-gray-600 mb-4">
-            Huấn luyện các mô hình ML sử dụng Spark MLlib với dữ liệu đã được xử lý.
-          </p>
-          
-          <button
-            onClick={handleTrainModels}
-            disabled={loading || !mlHealth?.spark_session}
-            className="btn-primary w-full flex items-center justify-center space-x-2"
-          >
-            <Zap className="w-4 h-4" />
-            <span>Huấn luyện Mô hình</span>
-          </button>
-          
-          {trainingResult && (
-            <div className={`mt-4 p-3 rounded-lg ${
-              trainingResult.status === 'success' 
-                ? 'bg-green-50 border border-green-200' 
-                : 'bg-red-50 border border-red-200'
-            }`}>
-              <div className="flex items-center space-x-2">
-                {trainingResult.status === 'success' ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                )}
-                <span className={`text-sm font-medium ${
-                  trainingResult.status === 'success' ? 'text-green-800' : 'text-red-800'
-                }`}>
-                  {trainingResult.message}
-                </span>
-              </div>
-              {trainingResult.training_data_count && (
-                <p className="text-xs text-gray-600 mt-1">
-                  Dữ liệu huấn luyện: {formatNumber(trainingResult.training_data_count)} mẫu
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* System Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

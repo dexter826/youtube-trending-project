@@ -10,6 +10,7 @@ from pyspark.sql import SparkSession
 from pyspark.ml import PipelineModel
 from pyspark.sql.types import StructType, StructField, DoubleType, IntegerType
 import os
+import importlib.util
 
 
 class MLService:
@@ -303,6 +304,9 @@ class MLService:
     def train_models(self) -> bool:
         """Trigger model training using Spark job"""
         try:
+            import subprocess
+            import os
+            
             if not self.spark:
                 raise HTTPException(status_code=503, detail="Spark session not available")
             
@@ -311,35 +315,50 @@ class MLService:
             if training_data_count < 1000:
                 raise HTTPException(status_code=400, detail=f"Insufficient training data: {training_data_count} records")
             
-            print(f"🤖 Triggering Spark MLlib model training with {training_data_count} records...")
+            print(f"🤖 Training request received with {training_data_count} records...")
             
-            # Run Spark training job
-            import subprocess
-            import sys
+            # Path to training script - use absolute path from project root
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(os.path.dirname(current_dir))
+            script_path = os.path.join(project_root, 'spark', 'train_models.py')
             
-            result = subprocess.run(
-                [sys.executable, "spark/train_models.py"], 
-                capture_output=True, 
-                text=True, 
-                cwd=os.getcwd()
-            )
+            # Check if script exists
+            if not os.path.exists(script_path):
+                raise HTTPException(status_code=500, detail=f"Training script not found at: {script_path}")
+            
+            print(f"📁 Training script path: {script_path}")
+            
+            # Check if spark-submit is available
+            import shutil
+            spark_submit_path = shutil.which('spark-submit')
+            if not spark_submit_path:
+                raise HTTPException(status_code=500, detail="spark-submit not found in PATH. Please ensure Apache Spark is installed and in PATH.")
+            
+            print(f"✅ Spark-submit found at: {spark_submit_path}")
+            
+            # Run training with spark-submit
+            cmd = f"spark-submit {script_path}"
+            print(f"📋 Full command: {cmd}")
+            print(f"📂 Working directory: {project_root}")
+            print(f"📄 Script exists: {os.path.exists(script_path)}")
+            
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=project_root)
+            
+            print(f"📊 Return code: {result.returncode}")
+            if result.stdout:
+                print(f"📝 STDOUT: {result.stdout}")
+            if result.stderr:
+                print(f"❌ STDERR: {result.stderr}")
             
             if result.returncode == 0:
+                print("✅ Training completed successfully")
                 # Reload models after training
-                success = self.load_models_from_hdfs()
-                if success:
-                    return {
-                        "status": "success",
-                        "message": "Spark MLlib models trained successfully",
-                        "training_data_count": training_data_count,
-                        "models": list(self.models.keys()),
-                        "framework": "spark_mllib"
-                    }
-                else:
-                    raise HTTPException(status_code=500, detail="Training completed but model loading failed")
+                self.load_models_from_hdfs()
+                return True
             else:
+                print(f"❌ Training failed: {result.stderr}")
                 raise HTTPException(status_code=500, detail=f"Training failed: {result.stderr}")
-                
+            
         except Exception as e:
             print(f"❌ Training failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")

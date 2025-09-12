@@ -452,72 +452,8 @@ async def predict_cluster(video_data: VideoMLInput):
         raise HTTPException(status_code=500, detail=f"Clustering failed: {str(e)}")
 
 # ============================================================================
-# DATA PROCESSING ENDPOINTS (Spark)
-# ============================================================================
-
-@app.post("/data/process")
-async def process_data():
-    """Process raw data using Spark (data processing only)"""
-    try:
-        import subprocess
-        import sys
-        
-        # Check raw data availability
-        raw_data_count = db.raw_videos.count_documents({})
-        if raw_data_count == 0:
-            raise HTTPException(status_code=400, detail="No raw data available for processing")
-        
-        # Run Spark data processing job
-        script_path = "spark/jobs/process_trending.py"
-        result = subprocess.run(
-            [sys.executable, script_path], 
-            capture_output=True, 
-            text=True, 
-            cwd="c:/BigData/youtube-trending-project"
-        )
-        
-        if result.returncode == 0:
-            return {
-                "status": "success",
-                "message": "Data processing completed successfully",
-                "framework": "Apache Spark",
-                "input_records": raw_data_count,
-                "output": result.stdout[-500:] if result.stdout else ""  # Last 500 chars
-            }
-        else:
-            return {
-                "status": "error",
-                "message": "Data processing failed",
-                "error": result.stderr,
-                "output": result.stdout
-            }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Data processing failed: {str(e)}")
-
-# ============================================================================
 # ADMINISTRATION ENDPOINTS
 # ============================================================================
-
-@app.get("/admin/database-stats")
-async def get_database_stats():
-    """Get detailed database statistics"""
-    try:
-        collections = db.list_collection_names()
-        stats = {}
-        
-        for collection in collections:
-            count = db[collection].count_documents({})
-            stats[collection] = count
-        
-        return {
-            "collections": stats,
-            "total_collections": len(collections),
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

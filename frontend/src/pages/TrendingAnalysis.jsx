@@ -155,7 +155,7 @@ const TrendingAnalysis = () => {
             >
               <option value="">Tất cả danh mục</option>
               {categories.map((category) => (
-                <option key={category.id} value={category.name}>
+                <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
               ))}

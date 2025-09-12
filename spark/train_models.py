@@ -59,11 +59,11 @@ class YouTubeMLTrainer:
         print("📁 Loading training data from MongoDB...")
         
         try:
-            # Get data from MongoDB
-            raw_data = list(self.db.raw_videos.find({}))
+            # Get data from MongoDB ml_features collection
+            raw_data = list(self.db.ml_features.find({}))
             
             if not raw_data:
-                print("[ERROR] No training data found!")
+                print("[ERROR] No training data found in ml_features collection!")
                 return None
             
             # Clean data
