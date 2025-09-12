@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from fastapi import HTTPException
 import joblib
 import os
 from pymongo import MongoClient
@@ -188,119 +189,81 @@ class MLService:
             # Extract features
             features = self._extract_features(video_data)
             
-            if self.is_trained and "trending_classifier" in self.models:
-                # Use trained model
-                X = np.array([features])
-                if "main" in self.scalers:
-                    X = self.scalers["main"].transform(X)
-                
-                model = self.models["trending_classifier"]
-                prediction = model.predict(X)[0]
-                probability = model.predict_proba(X)[0][1]  # Probability of trending
-                
-                return {
-                    "trending_probability": float(probability),
-                    "prediction": int(prediction),
-                    "confidence": "high" if probability > 0.7 or probability < 0.3 else "medium",
-                    "method": "scikit_learn"
-                }
-            else:
-                # Fallback rule-based prediction
-                views = video_data.get("views", 0)
-                likes = video_data.get("likes", 0)
-                engagement = likes / max(views, 1)
-                
-                trending_prob = min(0.9, engagement * 10 + 0.1)
-                
-                return {
-                    "trending_probability": trending_prob,
-                    "prediction": 1 if trending_prob > 0.5 else 0,
-                    "confidence": "low",
-                    "method": "rule_based"
-                }
+            if not self.is_trained or "trending_classifier" not in self.models:
+                raise HTTPException(status_code=503, detail="ML models not trained. Please train models first.")
+            
+            # Use trained model
+            X = np.array([features])
+            if "main" in self.scalers:
+                X = self.scalers["main"].transform(X)
+            
+            model = self.models["trending_classifier"]
+            prediction = model.predict(X)[0]
+            probability = model.predict_proba(X)[0][1]  # Probability of trending
+            
+            return {
+                "trending_probability": float(probability),
+                "prediction": int(prediction),
+                "confidence": "high" if probability > 0.7 or probability < 0.3 else "medium",
+                "method": "scikit_learn"
+            }
                 
         except Exception as e:
             print(f"[ERROR] Trending prediction failed: {str(e)}")
-            return {"trending_probability": 0.5, "confidence": "low", "method": "fallback"}
+            raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         """Predict view count for a video"""
         try:
             features = self._extract_features(video_data)
             
-            if self.is_trained and "views_regressor" in self.models:
-                # Use trained model
-                X = np.array([features])
-                if "main" in self.scalers:
-                    X = self.scalers["main"].transform(X)
-                
-                model = self.models["views_regressor"]
-                log_views = model.predict(X)[0]
-                predicted_views = int(math.exp(log_views))
-                
-                return {
-                    "predicted_views": max(0, predicted_views),
-                    "confidence": "high",
-                    "method": "scikit_learn"
-                }
-            else:
-                # Fallback prediction
-                likes = video_data.get("likes", 0)
-                comments = video_data.get("comment_count", 0)
-                estimated_views = (likes * 50) + (comments * 100)
-                
-                return {
-                    "predicted_views": estimated_views,
-                    "confidence": "low", 
-                    "method": "rule_based"
-                }
+            if not self.is_trained or "views_regressor" not in self.models:
+                raise HTTPException(status_code=503, detail="ML models not trained. Please train models first.")
+            
+            # Use trained model
+            X = np.array([features])
+            if "main" in self.scalers:
+                X = self.scalers["main"].transform(X)
+            
+            model = self.models["views_regressor"]
+            log_views = model.predict(X)[0]
+            predicted_views = int(math.exp(log_views))
+            
+            return {
+                "predicted_views": max(0, predicted_views),
+                "confidence": "high",
+                "method": "scikit_learn"
+            }
                 
         except Exception as e:
             print(f"[ERROR] Views prediction failed: {str(e)}")
-            return {"predicted_views": 1000, "confidence": "low", "method": "fallback"}
+            raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_cluster(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         """Predict content cluster for a video"""
         try:
             features = self._extract_features(video_data)
             
-            if self.is_trained and "content_clusterer" in self.models:
-                # Use trained model
-                X = np.array([features])
-                if "main" in self.scalers:
-                    X = self.scalers["main"].transform(X)
-                
-                model = self.models["content_clusterer"]
-                cluster = model.predict(X)[0]
-                
-                return {
-                    "cluster": int(cluster),
-                    "confidence": "high",
-                    "method": "scikit_learn"
-                }
-            else:
-                # Fallback clustering based on view ranges
-                views = video_data.get("views", 0)
-                if views < 10000:
-                    cluster = 0  # Low engagement
-                elif views < 100000:
-                    cluster = 1  # Medium engagement
-                elif views < 1000000:
-                    cluster = 2  # High engagement
-                elif views < 10000000:
-                    cluster = 3  # Viral content
-                else:
-                    cluster = 4  # Mega viral
-                    
-                return {
-                    "cluster": cluster,
-                    "confidence": "medium",
-                    "method": "rule_based"
-                }
+            if not self.is_trained or "content_clusterer" not in self.models:
+                raise HTTPException(status_code=503, detail="ML models not trained. Please train models first.")
+            
+            # Use trained model
+            X = np.array([features])
+            if "main" in self.scalers:
+                X = self.scalers["main"].transform(X)
+            
+            model = self.models["content_clusterer"]
+            cluster = model.predict(X)[0]
+            
+            return {
+                "cluster": int(cluster),
+                "confidence": "high",
+                "method": "scikit_learn"
+            }
                 
         except Exception as e:
             print(f"[ERROR] Clustering failed: {str(e)}")
-            return {"cluster": 0, "confidence": "low", "method": "fallback"}
+            raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def _extract_features(self, video_data: Dict[str, Any]) -> list:
         """Extract numerical features from video data"""

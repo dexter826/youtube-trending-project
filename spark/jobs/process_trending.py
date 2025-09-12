@@ -269,10 +269,8 @@ class YouTubeTrendingProcessor:
                 print(f"[OK] Loaded {country} data from HDFS")
                 
             except Exception as e:
-                print(f"[WARN] Could not load {country} data from HDFS: {str(e)}")
-                print(f"[INFO] Falling back to local data for {country}")
-                # Fallback to local data if HDFS fails
-                continue
+                print(f"[ERROR] Could not load {country} data from HDFS: {str(e)}")
+                raise RuntimeError(f"HDFS data loading failed for {country}. Ensure HDFS is running and data is uploaded.")
         
         if all_data:
             # Union all dataframes (by column name)
@@ -491,16 +489,11 @@ class YouTubeTrendingProcessor:
             print("🚀 Starting YouTube Trending Data Processing Pipeline (HDFS-enabled)")
             print("=" * 70)
             
-            # Step 1: Try to load CSV data from HDFS first
+            # Step 1: Load CSV data from HDFS (HDFS required)
             df = self.load_csv_data_from_hdfs()
             
-            # Fallback to local data if needed
-            if df is None and data_path:
-                print("[FALLBACK] Loading from local filesystem...")
-                df = self.load_csv_data(data_path)
-            
             if df is None:
-                print("[ERROR] Failed to load data from both HDFS and local. Exiting.")
+                print("[ERROR] Failed to load data from HDFS. Ensure HDFS is running and data is uploaded.")
                 return False
             
             # Step 2: Save raw data to MongoDB
