@@ -15,7 +15,7 @@ from bson import ObjectId
 import json
 
 # Import ML services
-from .ml_service import get_ml_service, initialize_ml_service
+from ml_service import get_ml_service, initialize_ml_service
 
 # Load category mappings
 CATEGORY_MAPPINGS = {}
@@ -317,25 +317,29 @@ async def get_statistics(country: Optional[str] = None):
     try:
         filter_query = {"country": country} if country else {}
         
-        pipeline = [
-            {"$match": filter_query},
-            {"$group": {
-                "_id": None,
-                "total_videos": {"$sum": 1},
-                "avg_views": {"$avg": "$views"},
-                "avg_likes": {"$avg": "$likes"},
-                "avg_comments": {"$avg": "$comment_count"},
-                "max_views": {"$max": "$views"}
-            }}
-        ]
+        # Get total count
+        total_videos = db.raw_videos.count_documents(filter_query)
         
-        result = list(db.trending_results.aggregate(pipeline))
-        if result:
-            stats = result[0]
-            del stats["_id"]
-            return {"statistics": stats, "country": country}
-        else:
+        if total_videos == 0:
             return {"statistics": {}, "country": country}
+        
+        # Calculate averages manually
+        videos = list(db.raw_videos.find(filter_query, {"views": 1, "likes": 1, "comment_count": 1}))
+        
+        total_views = sum(video.get("views", 0) for video in videos)
+        total_likes = sum(video.get("likes", 0) for video in videos)
+        total_comments = sum(video.get("comment_count", 0) for video in videos)
+        max_views = max((video.get("views", 0) for video in videos), default=0)
+        
+        stats = {
+            "total_videos": total_videos,
+            "avg_views": total_views / total_videos if total_videos > 0 else 0,
+            "avg_likes": total_likes / total_videos if total_videos > 0 else 0,
+            "avg_comments": total_comments / total_videos if total_videos > 0 else 0,
+            "max_views": max_views
+        }
+        
+        return {"statistics": stats, "country": country}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
@@ -454,6 +458,22 @@ async def predict_cluster(video_data: VideoMLInput):
 # ============================================================================
 # ADMINISTRATION ENDPOINTS
 # ============================================================================
+
+@app.get("/admin/database-stats")
+async def get_database_stats():
+    """Get database statistics"""
+    try:
+        stats = {
+            "raw_videos": db.raw_videos.count_documents({}),
+            "trending_results": db.trending_results.count_documents({}),
+            "wordcloud_data": db.wordcloud_data.count_documents({}),
+            "ml_features": db.ml_features.count_documents({})
+        }
+        
+        return {"collections": stats}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
