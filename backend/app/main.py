@@ -218,17 +218,47 @@ async def get_trending_videos(
 ):
     """Get trending videos with filters"""
     try:
-        filter_query = {}
+        pipeline = []
         
+        # Match stage
+        match_stage = {}
         if country:
-            filter_query["country"] = country
-        if category:
-            filter_query["category_title"] = category
+            match_stage["country"] = country
+        if match_stage:
+            pipeline.append({"$match": match_stage})
         
-        results = list(db.trending_results.find(
-            filter_query,
-            {"_id": 0}
-        ).sort("views", -1).limit(limit))
+        # Unwind top_videos array
+        pipeline.append({"$unwind": "$top_videos"})
+        
+        # Replace root with top_videos data and add metadata
+        pipeline.append({
+            "$replaceRoot": {
+                "newRoot": {
+                    "$mergeObjects": [
+                        "$top_videos",
+                        {
+                            "country": "$country",
+                            "date": "$date",
+                            "processed_at": "$processed_at"
+                        }
+                    ]
+                }
+            }
+        })
+        
+        # Filter by category if provided
+        if category:
+            pipeline.append({
+                "$match": {"category_id": int(category)}
+            })
+        
+        # Sort by views descending
+        pipeline.append({"$sort": {"views": -1}})
+        
+        # Limit results
+        pipeline.append({"$limit": limit})
+        
+        results = list(db.trending_results.aggregate(pipeline))
         
         return {
             "videos": results,
