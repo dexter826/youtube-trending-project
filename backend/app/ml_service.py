@@ -380,7 +380,7 @@ class MLService:
         try:
             # Fix path to point to project root
             current_dir = os.path.dirname(__file__)
-            cluster_file = os.path.join(current_dir, "../../cluster_names.json")
+            cluster_file = os.path.join(current_dir, "../../spark/cluster_names.json")
             print(f"Current dir: {current_dir}")
             print(f"Looking for cluster file at: {cluster_file}")
             print(f"Absolute path: {os.path.abspath(cluster_file)}")
