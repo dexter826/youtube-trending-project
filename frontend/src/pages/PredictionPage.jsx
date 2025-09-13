@@ -34,6 +34,8 @@ const PredictionPage = () => {
     comment_count: 0,
     category_id: 0,
     tags: "",
+    publish_hour: 12,
+    video_age_proxy: 2,
   });
   const [predictions, setPredictions] = useState({
     trending: null,
@@ -56,6 +58,8 @@ const PredictionPage = () => {
         comment_count: 800,
         category_id: 28, // Science & Technology
         tags: "iPhone|iPhone 15|review|tech|Apple|smartphone",
+        publish_hour: 14,
+        video_age_proxy: 2,
       },
       predictions: {
         trending: {
@@ -92,6 +96,8 @@ const PredictionPage = () => {
         comment_count: 1200,
         category_id: 24, // Entertainment
         tags: "cats|funny|videos|pets|comedy|animals",
+        publish_hour: 18,
+        video_age_proxy: 1,
       },
       predictions: {
         trending: {
@@ -128,6 +134,8 @@ const PredictionPage = () => {
         comment_count: 25000,
         category_id: 25, // News & Politics
         tags: "news|breaking|viral|trending|world|event",
+        publish_hour: 8,
+        video_age_proxy: 1,
       },
       predictions: {
         trending: {
@@ -183,7 +191,9 @@ const PredictionPage = () => {
         field === "views" ||
         field === "likes" ||
         field === "dislikes" ||
-        field === "category_id"
+        field === "category_id" ||
+        field === "publish_hour" ||
+        field === "video_age_proxy"
           ? parseInt(value) || 0
           : value,
     }));
@@ -593,6 +603,39 @@ const PredictionPage = () => {
                   rows={3}
                   className="input-field"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Giờ đăng (0-23)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={videoData.publish_hour}
+                    onChange={(e) => handleInputChange("publish_hour", e.target.value)}
+                    placeholder="12"
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Độ tuổi video (1-4)
+                  </label>
+                  <select
+                    value={videoData.video_age_proxy}
+                    onChange={(e) => handleInputChange("video_age_proxy", e.target.value)}
+                    className="input-field"
+                  >
+                    <option value={1}>Rất mới (0-1 ngày)</option>
+                    <option value={2}>Mới (2-7 ngày)</option>
+                    <option value={3}>Gần đây (8-30 ngày)</option>
+                    <option value={4}>Cũ (&gt;30 ngày)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
