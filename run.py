@@ -121,8 +121,7 @@ class ProjectRunner:
 
         # Run Spark data processing
         spark_script = str(path_config.SPARK_PROCESS_SCRIPT)
-        fallback_data = str(path_config.DATA_DIR)
-        cmd = f"spark-submit {spark_script} {fallback_data}"
+        cmd = f"python {spark_script}"
 
         if not self.run_command(cmd, "Running Spark data processing"):
             return False
@@ -130,7 +129,7 @@ class ProjectRunner:
         # Train ML models
         training_script = str(path_config.SPARK_TRAIN_SCRIPT)
         if not self.run_command(
-            f"spark-submit {training_script}",
+            f"python {training_script}",
             "Training ML models"
         ):
             return False

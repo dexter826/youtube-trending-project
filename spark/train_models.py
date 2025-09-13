@@ -1,274 +1,169 @@
 """
-YouTube Trending ML Training
+YouTube Trending ML Training - Refactored
 """
 
 import os
 import sys
 from datetime import datetime
-import pandas as pd
+import time
 
-from pyspark.sql.functions import *
-from pyspark.sql.window import Window
-
-from pyspark.ml.feature import VectorAssembler, StandardScaler
-from pyspark.ml.classification import RandomForestClassifier
-from pyspark.ml.clustering import KMeans
-from pyspark.ml.regression import RandomForestRegressor
-from pyspark.ml import Pipeline
-from pyspark.ml.evaluation import BinaryClassificationEvaluator, RegressionEvaluator, ClusteringEvaluator
-
-from core.spark_manager import get_spark_session, PRODUCTION_CONFIGS
-from core.database_manager import get_database_connection
+from training.data_preparation import DataPreparation
+from training.model_training import ModelTraining
+from training.model_evaluation import ModelEvaluation
+from training.model_saving import ModelSaving
 
 
 class YouTubeMLTrainer:
     def __init__(self):
-        """Initialize ML trainer"""
+        """Initialize ML trainer with modular components"""
+        # Import here to avoid circular imports
+        import sys
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+        from core.spark_manager import get_spark_session, PRODUCTION_CONFIGS
+        from core.database_manager import get_database_connection
+
         self.spark = get_spark_session("YouTubeMLTrainer", PRODUCTION_CONFIGS["ml_training"])
         self.db = get_database_connection()
-        # Get the MongoDB client from the manager for proper cleanup
+
+        # Initialize modular components
+        self.data_prep = DataPreparation(self.db)
+        self.model_training = ModelTraining(self.spark)
+        self.model_evaluation = ModelEvaluation(self.spark)
+        self.model_saving = ModelSaving("hdfs://localhost:9000/youtube_trending")
+
+        # Keep references for backward compatibility
         from core.database_manager import _manager
         self.mongo_client = _manager._client
-        self.hdfs_base_path = "hdfs://localhost:9000/youtube_trending"
-        self.models_path = f"{self.hdfs_base_path}/models"
 
     def load_training_data(self):
-        """Load training data from MongoDB"""
-        raw_data = list(self.db.ml_features.find({}))
-
-        if not raw_data:
+        """Load training data using DataPreparation module"""
+        pandas_df = self.data_prep.load_training_data_from_mongodb()
+        if pandas_df is None:
             return None
 
-        cleaned_data = []
-        for record in raw_data:
-            if '_id' in record:
-                del record['_id']
-
-            cleaned_record = {}
-            for key, value in record.items():
-                if value is None:
-                    if key in ['views', 'likes', 'dislikes', 'comment_count', 'category_id']:
-                        cleaned_record[key] = 0
-                    else:
-                        cleaned_record[key] = ""
-                else:
-                    cleaned_record[key] = value
-
-            cleaned_data.append(cleaned_record)
-
-        pandas_df = pd.DataFrame(cleaned_data)
         df = self.spark.createDataFrame(pandas_df)
-
         return df
 
     def train_trending_prediction_model(self, df):
-        """Train trending prediction model"""
-        # Add log transformation for views
-        df = df.withColumn("log_views", log(col("views") + 1))
-        
-        # Ensure publish_hour and video_age_proxy exist (they should be in the data now)
-        # If not present, create defaults
-        if "publish_hour" not in df.columns:
-            df = df.withColumn("publish_hour", lit(12))  # Default to noon
-        if "video_age_proxy" not in df.columns:
-            df = df.withColumn("video_age_proxy", 
-                              when(col("engagement_score") > 0.1, 1).otherwise(2))  # Simple proxy
-        
-        feature_cols = [
-            "log_views", "like_ratio", "dislike_ratio", "comment_ratio", "engagement_score",
-            "title_length", "has_caps", "tag_count", "category_id", "publish_hour", "video_age_proxy"
-        ]
+        """Train trending prediction model using modular components"""
+        # Prepare data
+        data, feature_cols = self.data_prep.prepare_features_for_trending_prediction(df)
 
-        data = df.select(feature_cols + ["is_trending"]).na.fill(0)
+        # Train model
+        model, train_data, test_data, predictions = self.model_training.train_trending_prediction_model(data, feature_cols)
 
-        assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
-        scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
-        rf_classifier = RandomForestClassifier(
-            featuresCol="scaledFeatures",
-            labelCol="is_trending",
-            predictionCol="prediction",
-            numTrees=50,
-            maxDepth=10,
-            seed=42
-        )
+        # Evaluate model
+        metrics = self.model_evaluation.evaluate_trending_prediction_model(predictions, feature_cols)
 
-        pipeline = Pipeline(stages=[assembler, scaler, rf_classifier])
+        # Save model
+        model_path = self.model_saving.save_model(model, "trending_prediction")
 
-        train_data, test_data = data.randomSplit([0.8, 0.2], seed=42)
-        model = pipeline.fit(train_data)
-
-        predictions = model.transform(test_data)
-        evaluator = BinaryClassificationEvaluator(labelCol="is_trending")
-        auc = evaluator.evaluate(predictions)
-
-        # Calculate additional metrics
-        from pyspark.ml.evaluation import MulticlassClassificationEvaluator
-        multi_evaluator = MulticlassClassificationEvaluator(labelCol="is_trending", predictionCol="prediction")
-        accuracy = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "accuracy"})
-        precision = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "weightedPrecision"})
-        recall = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "weightedRecall"})
-        f1 = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "f1"})
-
-        # Save trending metrics
-        trending_metrics = {
-            "auc": float(auc),
-            "accuracy": float(accuracy),
-            "precision": float(precision),
-            "recall": float(recall),
-            "f1_score": float(f1),
-            "features_used": feature_cols
-        }
-
-        model_path = f"{self.models_path}/trending_prediction"
-        model.write().overwrite().save(model_path)
-
-        return model, trending_metrics
+        return model, metrics
 
     def train_clustering_model(self, df):
-        """Train clustering model"""
-        category_counts = df.groupBy("category_id").count().orderBy("count", ascending=False)
-        category_counts.show(10)
-        
-        # Ensure publish_hour and video_age_proxy exist
-        if "publish_hour" not in df.columns:
-            df = df.withColumn("publish_hour", lit(12))
-        if "video_age_proxy" not in df.columns:
-            df = df.withColumn("video_age_proxy", 
-                              when(col("engagement_score") > 0.1, 1).otherwise(2))
-        
-        feature_cols = [
-            "views", "likes", "dislikes", "comment_count",
-            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id",
-            "publish_hour", "video_age_proxy"
-        ]
+        """Train clustering model using modular components"""
+        # Prepare data
+        data, feature_cols = self.data_prep.prepare_features_for_clustering(df)
 
-        data = df.select(feature_cols).na.fill(0)
+        # Show category distribution for analysis
+        category_dist = self.model_evaluation.get_category_distribution(df)
+        category_dist.show(10)
 
-        data = data.withColumn("log_views", log(col("views") + 1)) \
-                  .withColumn("log_likes", log(col("likes") + 1)) \
-                  .withColumn("log_dislikes", log(col("dislikes") + 1)) \
-                  .withColumn("log_comments", log(col("comment_count") + 1))
+        # Train model
+        model, predictions = self.model_training.train_clustering_model(data, feature_cols)
 
-        cluster_features = [
-            "log_views", "log_likes", "log_dislikes", "log_comments",
-            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id",
-            "publish_hour", "video_age_proxy"
-        ]
+        # Evaluate model
+        metrics = self.model_evaluation.evaluate_clustering_model(predictions, feature_cols)
 
-        assembler = VectorAssembler(inputCols=cluster_features, outputCol="features")
-        scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
-        # Increase k to 5 for better clustering granularity
-        kmeans = KMeans(featuresCol="scaledFeatures", predictionCol="cluster", k=4, seed=42, maxIter=200)
+        # Save model
+        model_path = self.model_saving.save_model(model, "clustering")
 
-        pipeline = Pipeline(stages=[assembler, scaler, kmeans])
-        model = pipeline.fit(data)
-
-        # Evaluate clustering with silhouette score
-        predictions = model.transform(data)
-        evaluator = ClusteringEvaluator(predictionCol="cluster", featuresCol="scaledFeatures")
-        silhouette = evaluator.evaluate(predictions)
-
-        # Save clustering metrics
-        clustering_metrics = {
-            "silhouette_score": float(silhouette),
-            "num_clusters": 4,
-            "features_used": cluster_features
-        }
-
-        model_path = f"{self.models_path}/clustering"
-        model.write().overwrite().save(model_path)
-
-        return model, clustering_metrics
+        return model, metrics
 
     def train_regression_model(self, df):
-        """Train regression model"""
-        # Ensure publish_hour and video_age_proxy exist
-        if "publish_hour" not in df.columns:
-            df = df.withColumn("publish_hour", lit(12))
-        if "video_age_proxy" not in df.columns:
-            df = df.withColumn("video_age_proxy", 
-                              when(col("engagement_score") > 0.1, 1).otherwise(2))
-        
-        feature_cols = [
-            "views", "likes", "dislikes", "comment_count", "like_ratio",
-            "engagement_score", "title_length", "tag_count", "category_id",
-            "publish_hour", "video_age_proxy"
-        ]
+        """Train regression model using modular components"""
+        # Prepare data
+        data, feature_cols = self.data_prep.prepare_features_for_regression(df)
 
-        data = df.select(feature_cols + ["log_views"]).na.fill(0)
+        # Train model
+        model, train_data, test_data, predictions = self.model_training.train_regression_model(data, feature_cols)
 
-        assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
-        scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
-        rf_regressor = RandomForestRegressor(
-            featuresCol="scaledFeatures",
-            labelCol="log_views",
-            predictionCol="prediction",
-            numTrees=50,
-            maxDepth=10,
-            seed=42
-        )
+        # Evaluate model
+        metrics = self.model_evaluation.evaluate_regression_model(predictions, feature_cols)
 
-        pipeline = Pipeline(stages=[assembler, scaler, rf_regressor])
+        # Save model
+        model_path = self.model_saving.save_model(model, "regression")
 
-        train_data, test_data = data.randomSplit([0.8, 0.2], seed=42)
-        model = pipeline.fit(train_data)
-
-        predictions = model.transform(test_data)
-        evaluator = RegressionEvaluator(labelCol="log_views", predictionCol="prediction")
-        rmse = evaluator.evaluate(predictions, {evaluator.metricName: "rmse"})
-        mae = evaluator.evaluate(predictions, {evaluator.metricName: "mae"})
-        r2 = evaluator.evaluate(predictions, {evaluator.metricName: "r2"})
-
-        # Save regression metrics
-        regression_metrics = {
-            "rmse": float(rmse),
-            "mae": float(mae),
-            "r2_score": float(r2),
-            "features_used": feature_cols
-        }
-
-        model_path = f"{self.models_path}/regression"
-        model.write().overwrite().save(model_path)
-
-        return model, regression_metrics
+        return model, metrics
 
     def run_training_pipeline(self):
-        """Run complete model training pipeline"""
+        """Run complete model training pipeline using modular components"""
         try:
+            print("🤖 Starting ML Training Pipeline...")
+            start_time = time.time()
+
+            # Step 1: Load training data
+            print("\n📥 Step 1/3: Loading training data...")
+            step_start = time.time()
             df = self.load_training_data()
             if df is None:
                 return False
 
             df.cache()
+            record_count = df.count()
+            print(f"   [INFO] Loaded {record_count} training records")
 
-            # Train models and collect metrics
+            # Step 2: Train models
+            print("\n🎯 Step 2/3: Training ML models...")
+            step_start = time.time()
+
+            # Train trending prediction model
+            print("   [TRAINING] Training trending prediction model...")
             trending_model, trending_metrics = self.train_trending_prediction_model(df)
+            print(f"      [METRICS] AUC: {trending_metrics['auc']:.3f}, Accuracy: {trending_metrics['accuracy']:.3f}")
+
+            # Train clustering model
+            print("   [TRAINING] Training clustering model...")
             clustering_model, clustering_metrics = self.train_clustering_model(df)
+            print(f"      [METRICS] Silhouette Score: {clustering_metrics['silhouette_score']:.3f}")
+
+            # Train regression model
+            print("   [TRAINING] Training regression model...")
             regression_model, regression_metrics = self.train_regression_model(df)
+            print(f"      [METRICS] R² Score: {regression_metrics['r2_score']:.3f}, RMSE: {regression_metrics['rmse']:.4f}")
 
-            # Save all metrics to JSON file
-            all_metrics = {
-                "trending": trending_metrics,
-                "clustering": clustering_metrics,
-                "regression": regression_metrics,
-                "training_timestamp": datetime.now().isoformat(),
-                "dataset_size": df.count()
-            }
+            # Step 3: Save results
+            print("\n💾 Step 3/3: Saving models and metrics...")
+            step_start = time.time()
+            dataset_size = df.count()
+            metrics_path = self.model_saving.save_metrics_to_json(
+                trending_metrics, clustering_metrics, regression_metrics, dataset_size
+            )
 
-            import json
-            metrics_path = f"{self.hdfs_base_path}/metrics/model_metrics.json"
-            # Save to local file for simplicity (in production, save to HDFS or DB)
-            local_metrics_path = "model_metrics.json"
-            with open(local_metrics_path, 'w') as f:
-                json.dump(all_metrics, f, indent=2)
+            # Also save to MongoDB
+            self.model_saving.save_metrics_to_mongodb(
+                self.db, trending_metrics, clustering_metrics, regression_metrics, dataset_size
+            )
+            print(f"   [SAVE] Metrics saved to: {metrics_path}")
 
+            # Summary
+            total_time = time.time() - start_time
+            print(
+                "\n[SUCCESS] ML Training Pipeline completed successfully!"
+            )
+            print(f"   [INFO] Dataset size: {dataset_size} records")
+            print("   [INFO] Models trained: 3 (Trending, Clustering, Regression)")
             return all([trending_model, clustering_model, regression_model])
 
         except Exception as e:
+            print(f"\n[ERROR] Training pipeline failed with error: {e}")
             return False
         finally:
+            print("\n[CLEANUP] Cleaning up resources...")
             self.spark.stop()
             self.mongo_client.close()
+            print("[SUCCESS] Resources cleaned up")
 
 def main():
     """Main execution function"""

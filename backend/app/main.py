@@ -2,50 +2,22 @@
 FastAPI Backend for YouTube Trending Analytics
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
-from datetime import datetime, date
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from datetime import datetime
 import os
 import sys
 from pathlib import Path
-from bson import ObjectId
-import json
 
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from backend.app.ml_service import get_ml_service, initialize_ml_service
-
-# Load category mappings
-CATEGORY_MAPPINGS = {}
-
-def load_category_mappings():
-    """Load category mappings from JSON files"""
-    global CATEGORY_MAPPINGS
-    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
-
-    for filename in os.listdir(data_dir):
-        if filename.endswith('_category_id.json'):
-            country = filename.split('_')[0].upper()
-            filepath = os.path.join(data_dir, filename)
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    mapping = {}
-                    for item in data.get('items', []):
-                        cat_id = int(item['id'])
-                        title = item['snippet']['title']
-                        mapping[cat_id] = title
-                    CATEGORY_MAPPINGS[country] = mapping
-            except Exception as e:
-                pass  # Skip invalid files
-
-# Load mappings on startup
-load_category_mappings()
+from backend.app.routes.trending_routes import *
+from backend.app.routes.ml_routes import *
+from backend.app.utils.response_utils import JSONEncoder
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -74,23 +46,9 @@ app.add_middleware(
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 
-class JSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder for MongoDB ObjectId and datetime"""
-    def default(self, obj):
-        if isinstance(obj, ObjectId):
-            return str(obj)
-        elif isinstance(obj, (datetime, date)):
-            return obj.isoformat()
-        return super().default(obj)
-
-class VideoMLInput(BaseModel):
-    title: str
-    views: int = 0
-    likes: int = 0
-    dislikes: int = 0
-    comment_count: int = 0
-    category_id: int = 0
-    tags: str = ""
+# Set database connections for routes
+set_database(db)
+set_ml_service_getter(get_ml_service)
 
 @app.on_event("startup")
 async def startup_event():
@@ -106,258 +64,23 @@ async def shutdown_event():
     """Cleanup on shutdown"""
     client.close()
 
-@app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {
-        "message": "YouTube Trending Analytics API",
-        "status": "running",
-        "timestamp": datetime.now().isoformat()
-    }
+# Include routes
+app.get("/")(root)
+app.get("/health")(health_check)
+app.get("/countries")(get_countries)
+app.get("/categories")(get_categories)
+app.get("/dates")(get_dates)
+app.get("/trending")(get_trending_videos)
+app.get("/statistics")(get_statistics)
+app.get("/wordcloud")(get_wordcloud_data)
+app.get("/admin/database-stats")(get_database_stats)
 
-@app.get("/health")
-async def health_check():
-    """Detailed health check"""
-    try:
-        client.admin.command({'ping': 1})
-        ml_service = get_ml_service()
-        ml_status = "trained" if ml_service.is_trained else "untrained"
-
-        return {
-            "status": "healthy",
-            "database": "healthy",
-            "ml_service": ml_status,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
-
-@app.get("/countries")
-async def get_countries():
-    """Get list of available countries"""
-    try:
-        countries = list(db.trending_results.distinct("country"))
-        return {"countries": sorted(countries)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch countries: {str(e)}")
-
-@app.get("/categories")
-async def get_categories():
-    """Get list of video categories"""
-    try:
-        category_mapping = {
-            1: "Film & Animation", 2: "Autos & Vehicles", 10: "Music",
-            15: "Pets & Animals", 17: "Sports", 19: "Travel & Events",
-            20: "Gaming", 22: "People & Blogs", 23: "Comedy",
-            24: "Entertainment", 25: "News & Politics", 26: "Howto & Style",
-            27: "Education", 28: "Science & Technology", 29: "Nonprofits & Activism"
-        }
-
-        category_ids = list(db.trending_results.aggregate([
-            {"$unwind": "$top_videos"},
-            {"$group": {"_id": "$top_videos.category_id"}},
-            {"$sort": {"_id": 1}}
-        ]))
-
-        categories = []
-        for cat_doc in category_ids:
-            cat_id = cat_doc["_id"]
-            if cat_id in category_mapping:
-                categories.append({"id": cat_id, "name": category_mapping[cat_id]})
-
-        return {"categories": categories}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch categories: {str(e)}")
-
-@app.get("/dates")
-async def get_dates(country: Optional[str] = None):
-    """Get available dates for analysis"""
-    try:
-        filter_query = {"country": country} if country else {}
-        dates = list(db.trending_results.distinct("date", filter_query))
-        sorted_dates = sorted(dates, reverse=True)
-        return {"dates": sorted_dates}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch dates: {str(e)}")
-
-@app.get("/trending")
-async def get_trending_videos(
-    country: Optional[str] = None,
-    category: Optional[str] = None,
-    limit: int = Query(100, le=1000)
-):
-    """Get trending videos with filters"""
-    try:
-        pipeline = []
-
-        match_stage = {}
-        if country:
-            match_stage["country"] = country
-        if match_stage:
-            pipeline.append({"$match": match_stage})
-
-        pipeline.extend([
-            {"$unwind": "$top_videos"},
-            {
-                "$replaceRoot": {
-                    "newRoot": {
-                        "$mergeObjects": [
-                            "$top_videos",
-                            {"country": "$country", "date": "$date", "processed_at": "$processed_at"}
-                        ]
-                    }
-                }
-            }
-        ])
-
-        if category:
-            pipeline.append({"$match": {"category_id": int(category)}})
-
-        pipeline.extend([
-            {"$sort": {"views": -1}},
-            {"$limit": limit}
-        ])
-
-        results = list(db.trending_results.aggregate(pipeline))
-        return {"videos": results, "count": len(results)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch trending videos: {str(e)}")
-
-@app.get("/statistics")
-async def get_statistics(country: Optional[str] = None):
-    """Get trending statistics"""
-    try:
-        filter_query = {"country": country} if country else {}
-        total_videos = db.raw_videos.count_documents(filter_query)
-
-        if total_videos == 0:
-            return {"statistics": {}, "country": country}
-
-        videos = list(db.raw_videos.find(filter_query, {"views": 1, "likes": 1, "comment_count": 1}))
-
-        total_views = sum(video.get("views", 0) for video in videos)
-        total_likes = sum(video.get("likes", 0) for video in videos)
-        total_comments = sum(video.get("comment_count", 0) for video in videos)
-        max_views = max((video.get("views", 0) for video in videos), default=0)
-
-        stats = {
-            "total_videos": total_videos,
-            "avg_views": total_views / total_videos if total_videos > 0 else 0,
-            "avg_likes": total_likes / total_videos if total_videos > 0 else 0,
-            "avg_comments": total_comments / total_videos if total_videos > 0 else 0,
-            "max_views": max_views
-        }
-
-        return {"statistics": stats, "country": country}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
-
-@app.get("/wordcloud")
-async def get_wordcloud_data(country: Optional[str] = None):
-    """Get word cloud data"""
-    try:
-        filter_query = {"country": country} if country else {}
-        result = db.wordcloud_data.find_one(filter_query, {"_id": 0})
-        return result or {"wordcloud_data": []}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get wordcloud data: {str(e)}")
-
-# Machine Learning Endpoints
-
-@app.get("/ml/health")
-async def ml_health():
-    """ML service health check"""
-    try:
-        ml_service = get_ml_service()
-        return ml_service.get_model_info()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ML health check failed: {str(e)}")
-
-@app.post("/ml/train")
-async def train_ml_models():
-    """Train ML models using database data"""
-    try:
-        ml_service = get_ml_service()
-        training_data_count = db.ml_features.count_documents({})
-
-        if training_data_count < 1000:
-            raise HTTPException(status_code=400, detail=f"Insufficient training data: {training_data_count} records")
-
-        success = ml_service.train_models()
-
-        if success:
-            return {
-                "status": "success",
-                "message": "ML models trained successfully",
-                "training_data_count": training_data_count,
-                "models": list(ml_service.models.keys())
-            }
-        else:
-            raise HTTPException(status_code=500, detail="Training failed")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
-
-@app.post("/ml/predict")
-async def predict_trending(video_data: VideoMLInput):
-    """Predict if a video will be trending"""
-    try:
-        ml_service = get_ml_service()
-        video_dict = video_data.dict()
-        result = ml_service.predict_trending(video_dict)
-
-        return {
-            "prediction": result,
-            "input_data": video_dict,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-@app.post("/ml/predict-views")
-async def predict_views(video_data: VideoMLInput):
-    """Predict view count for a video"""
-    try:
-        ml_service = get_ml_service()
-        video_dict = video_data.dict()
-        result = ml_service.predict_views(video_dict)
-
-        return {
-            "prediction": result,
-            "input_data": video_dict,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Views prediction failed: {str(e)}")
-
-@app.post("/ml/clustering")
-async def predict_cluster(video_data: VideoMLInput):
-    """Predict content cluster for a video"""
-    try:
-        ml_service = get_ml_service()
-        video_dict = video_data.dict()
-        result = ml_service.predict_cluster(video_dict)
-
-        return {
-            "prediction": result,
-            "input_data": video_dict,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Clustering failed: {str(e)}")
-
-@app.get("/admin/database-stats")
-async def get_database_stats():
-    """Get database statistics"""
-    try:
-        stats = {
-            "raw_videos": db.raw_videos.count_documents({}),
-            "trending_results": db.trending_results.count_documents({}),
-            "wordcloud_data": db.wordcloud_data.count_documents({}),
-            "ml_features": db.ml_features.count_documents({})
-        }
-        return {"collections": stats}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")
+# ML routes
+app.get("/ml/health")(ml_health)
+app.post("/ml/train")(train_ml_models)
+app.post("/ml/predict")(predict_trending)
+app.post("/ml/predict-views")(predict_views)
+app.post("/ml/clustering")(predict_cluster)
 
 if __name__ == "__main__":
     import uvicorn

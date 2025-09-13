@@ -21,7 +21,7 @@
   },
   "clustering": {
     "silhouette_score": 0.25749511259081415,
-    "num_clusters": 5,
+    "num_clusters": 4,
     "features_used": [
       "log_views",
       "log_likes",
@@ -54,6 +54,6 @@
       "video_age_proxy"
     ]
   },
-  "training_timestamp": "2025-09-13T18:59:07.911666",
+  "training_timestamp": "2025-09-13T20:11:51.500736",
   "dataset_size": 375940
 }
