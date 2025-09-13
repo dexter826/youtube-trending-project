@@ -258,19 +258,25 @@ const ModelEvaluation = () => {
               <div className="flex justify-between text-xs">
                 <span>Accuracy:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "89.0%" : "N/A"}
+                  {mlHealth?.metrics?.trending?.accuracy
+                    ? `${(mlHealth.metrics.trending.accuracy * 100).toFixed(1)}%`
+                    : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span>Precision:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "88.4%" : "N/A"}
+                  {mlHealth?.metrics?.trending?.precision
+                    ? `${(mlHealth.metrics.trending.precision * 100).toFixed(1)}%`
+                    : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span>Recall:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "89.0%" : "N/A"}
+                  {mlHealth?.metrics?.trending?.recall
+                    ? `${(mlHealth.metrics.trending.recall * 100).toFixed(1)}%`
+                    : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
@@ -292,19 +298,25 @@ const ModelEvaluation = () => {
               <div className="flex justify-between text-xs">
                 <span>RMSE:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "0.115" : "N/A"}
+                  {mlHealth?.metrics?.regression?.rmse
+                    ? mlHealth.metrics.regression.rmse.toFixed(3)
+                    : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span>MAE:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "0.070" : "N/A"}
+                  {mlHealth?.metrics?.regression?.mae
+                    ? mlHealth.metrics.regression.mae.toFixed(3)
+                    : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span>R²:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "99.7%" : "N/A"}
+                  {mlHealth?.metrics?.regression?.r2_score
+                    ? `${(mlHealth.metrics.regression.r2_score * 100).toFixed(1)}%`
+                    : "N/A"}
                 </span>
               </div>
             </div>
@@ -320,20 +332,20 @@ const ModelEvaluation = () => {
               <div className="flex justify-between text-xs">
                 <span>Silhouette:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "0.383" : "N/A"}
+                  {mlHealth?.metrics?.clustering?.silhouette_score
+                    ? mlHealth.metrics.clustering.silhouette_score.toFixed(3)
+                    : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span>Clusters:</span>
                 <span className="font-medium">
-                  {mlHealth?.is_trained ? "3" : "N/A"}
+                  {mlHealth?.metrics?.clustering?.num_clusters || "N/A"}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span>Inertia:</span>
-                <span className="font-medium">
-                  {mlHealth?.is_trained ? "N/A" : "N/A"}
-                </span>
+                <span className="font-medium">N/A</span>
               </div>
             </div>
           </div>

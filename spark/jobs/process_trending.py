@@ -20,6 +20,9 @@ class YouTubeTrendingProcessor:
         """Initialize processor with Spark and database connections"""
         self.spark = get_spark_session("YouTubeTrendingProcessor", PRODUCTION_CONFIGS["data_processing"])
         self.db = get_database_connection()
+        # Get the MongoDB client from the manager for proper cleanup
+        from core.database_manager import _manager
+        self.mongo_client = _manager._client
         self.hdfs_base_path = "hdfs://localhost:9000/youtube_trending"
 
     def load_csv_data_from_hdfs(self):
@@ -259,6 +262,19 @@ class YouTubeTrendingProcessor:
 
     def create_ml_features(self, df):
         """Create ML features from raw data and save to MongoDB"""
+        # Time-based Features
+        df = df.withColumn("publish_hour", hour(to_timestamp(col("publish_time"), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")))
+        df = df.withColumn("publish_day_of_week", dayofweek(to_timestamp(col("publish_time"), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")))
+        
+        # Calculate video age proxy based on trending date vs publish date
+        df = df.withColumn("publish_date", to_date(to_timestamp(col("publish_time"), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")))
+        df = df.withColumn("video_age_days", datediff(col("trending_date_parsed"), col("publish_date")))
+        df = df.withColumn("video_age_proxy", 
+                          when(col("video_age_days") <= 1, 1)  # Very new (0-1 days)
+                          .when(col("video_age_days") <= 7, 2)  # New (2-7 days)  
+                          .when(col("video_age_days") <= 30, 3) # Recent (8-30 days)
+                          .otherwise(4))  # Older (>30 days)
+        
         # Engagement Features
         df = df.withColumn("like_ratio", when(col("views") > 0, col("likes") / col("views")).otherwise(0))
         df = df.withColumn("dislike_ratio", when(col("views") > 0, col("dislikes") / col("views")).otherwise(0))
@@ -288,6 +304,7 @@ class YouTubeTrendingProcessor:
             "views", "likes", "dislikes", "comment_count", "category_id",
             "like_ratio", "dislike_ratio", "comment_ratio", "engagement_score",
             "title_length", "has_caps", "tag_count",
+            "publish_hour", "publish_day_of_week", "video_age_days", "video_age_proxy",
             "is_trending", "log_views"
         ]
 
@@ -314,6 +331,10 @@ class YouTubeTrendingProcessor:
                 "title_length": int(row["title_length"]) if pd.notnull(row["title_length"]) else 0,
                 "has_caps": int(row["has_caps"]) if pd.notnull(row["has_caps"]) else 0,
                 "tag_count": int(row["tag_count"]) if pd.notnull(row["tag_count"]) else 0,
+                "publish_hour": int(row["publish_hour"]) if pd.notnull(row["publish_hour"]) else 12,
+                "publish_day_of_week": int(row["publish_day_of_week"]) if pd.notnull(row["publish_day_of_week"]) else 1,
+                "video_age_days": int(row["video_age_days"]) if pd.notnull(row["video_age_days"]) else 7,
+                "video_age_proxy": int(row["video_age_proxy"]) if pd.notnull(row["video_age_proxy"]) else 2,
                 "is_trending": int(row["is_trending"]) if pd.notnull(row["is_trending"]) else 0,
                 "log_views": float(row["log_views"]) if pd.notnull(row["log_views"]) else 0.0,
                 "processed_at": datetime.now().isoformat()

@@ -66,9 +66,17 @@ class YouTubeMLTrainer:
         # Add log transformation for views
         df = df.withColumn("log_views", log(col("views") + 1))
         
+        # Ensure publish_hour and video_age_proxy exist (they should be in the data now)
+        # If not present, create defaults
+        if "publish_hour" not in df.columns:
+            df = df.withColumn("publish_hour", lit(12))  # Default to noon
+        if "video_age_proxy" not in df.columns:
+            df = df.withColumn("video_age_proxy", 
+                              when(col("engagement_score") > 0.1, 1).otherwise(2))  # Simple proxy
+        
         feature_cols = [
             "log_views", "like_ratio", "dislike_ratio", "comment_ratio", "engagement_score",
-            "title_length", "has_caps", "tag_count", "category_id"
+            "title_length", "has_caps", "tag_count", "category_id", "publish_hour", "video_age_proxy"
         ]
 
         data = df.select(feature_cols + ["is_trending"]).na.fill(0)
@@ -108,19 +116,37 @@ class YouTubeMLTrainer:
         print(f"Recall: {recall:.4f}")
         print(f"F1 Score: {f1:.4f}")
 
+        # Save trending metrics
+        trending_metrics = {
+            "auc": float(auc),
+            "accuracy": float(accuracy),
+            "precision": float(precision),
+            "recall": float(recall),
+            "f1_score": float(f1),
+            "features_used": feature_cols
+        }
+
         model_path = f"{self.models_path}/trending_prediction"
         model.write().overwrite().save(model_path)
 
-        return model
+        return model, trending_metrics
 
     def train_clustering_model(self, df):
         """Train clustering model"""
         category_counts = df.groupBy("category_id").count().orderBy("count", ascending=False)
         category_counts.show(10)
         
+        # Ensure publish_hour and video_age_proxy exist
+        if "publish_hour" not in df.columns:
+            df = df.withColumn("publish_hour", lit(12))
+        if "video_age_proxy" not in df.columns:
+            df = df.withColumn("video_age_proxy", 
+                              when(col("engagement_score") > 0.1, 1).otherwise(2))
+        
         feature_cols = [
             "views", "likes", "dislikes", "comment_count",
-            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id"
+            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id",
+            "publish_hour", "video_age_proxy"
         ]
 
         data = df.select(feature_cols).na.fill(0)
@@ -132,32 +158,49 @@ class YouTubeMLTrainer:
 
         cluster_features = [
             "log_views", "log_likes", "log_dislikes", "log_comments",
-            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id"
+            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id",
+            "publish_hour", "video_age_proxy"
         ]
 
         assembler = VectorAssembler(inputCols=cluster_features, outputCol="features")
         scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
-        kmeans = KMeans(featuresCol="scaledFeatures", predictionCol="cluster", k=3, seed=42, maxIter=200)
+        # Increase k to 5 for better clustering granularity
+        kmeans = KMeans(featuresCol="scaledFeatures", predictionCol="cluster", k=5, seed=42, maxIter=200)
 
         pipeline = Pipeline(stages=[assembler, scaler, kmeans])
         model = pipeline.fit(data)
 
-        # Evaluate clustering
+        # Evaluate clustering with silhouette score
         predictions = model.transform(data)
         evaluator = ClusteringEvaluator(predictionCol="cluster", featuresCol="scaledFeatures")
         silhouette = evaluator.evaluate(predictions)
-        print(f"Silhouette score: {silhouette}")
+        print(f"Silhouette score: {silhouette:.4f}")
+
+        # Save clustering metrics
+        clustering_metrics = {
+            "silhouette_score": float(silhouette),
+            "num_clusters": 5,
+            "features_used": cluster_features
+        }
 
         model_path = f"{self.models_path}/clustering"
         model.write().overwrite().save(model_path)
 
-        return model
+        return model, clustering_metrics
 
     def train_regression_model(self, df):
         """Train regression model"""
+        # Ensure publish_hour and video_age_proxy exist
+        if "publish_hour" not in df.columns:
+            df = df.withColumn("publish_hour", lit(12))
+        if "video_age_proxy" not in df.columns:
+            df = df.withColumn("video_age_proxy", 
+                              when(col("engagement_score") > 0.1, 1).otherwise(2))
+        
         feature_cols = [
             "views", "likes", "dislikes", "comment_count", "like_ratio",
-            "engagement_score", "title_length", "tag_count", "category_id"
+            "engagement_score", "title_length", "tag_count", "category_id",
+            "publish_hour", "video_age_proxy"
         ]
 
         data = df.select(feature_cols + ["log_views"]).na.fill(0)
@@ -189,10 +232,18 @@ class YouTubeMLTrainer:
         print(f"MAE: {mae:.4f}")
         print(f"R²: {r2:.4f}")
 
+        # Save regression metrics
+        regression_metrics = {
+            "rmse": float(rmse),
+            "mae": float(mae),
+            "r2_score": float(r2),
+            "features_used": feature_cols
+        }
+
         model_path = f"{self.models_path}/regression"
         model.write().overwrite().save(model_path)
 
-        return model
+        return model, regression_metrics
 
     def run_training_pipeline(self):
         """Run complete model training pipeline"""
@@ -203,13 +254,32 @@ class YouTubeMLTrainer:
 
             df.cache()
 
-            trending_model = self.train_trending_prediction_model(df)
-            clustering_model = self.train_clustering_model(df)
-            regression_model = self.train_regression_model(df)
+            # Train models and collect metrics
+            trending_model, trending_metrics = self.train_trending_prediction_model(df)
+            clustering_model, clustering_metrics = self.train_clustering_model(df)
+            regression_model, regression_metrics = self.train_regression_model(df)
+
+            # Save all metrics to JSON file
+            all_metrics = {
+                "trending": trending_metrics,
+                "clustering": clustering_metrics,
+                "regression": regression_metrics,
+                "training_timestamp": datetime.now().isoformat(),
+                "dataset_size": df.count()
+            }
+
+            import json
+            metrics_path = f"{self.hdfs_base_path}/metrics/model_metrics.json"
+            # Save to local file for simplicity (in production, save to HDFS or DB)
+            local_metrics_path = "model_metrics.json"
+            with open(local_metrics_path, 'w') as f:
+                json.dump(all_metrics, f, indent=2)
+            print(f"Model metrics saved to {local_metrics_path}")
 
             return all([trending_model, clustering_model, regression_model])
 
         except Exception as e:
+            print(f"Training failed: {e}")
             return False
         finally:
             self.spark.stop()

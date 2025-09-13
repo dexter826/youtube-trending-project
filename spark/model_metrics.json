@@ -1,0 +1,59 @@
+{
+  "trending": {
+    "auc": 0.9430795798973505,
+    "accuracy": 0.8912872159963668,
+    "precision": 0.8861302926501538,
+    "recall": 0.8912872159963668,
+    "f1_score": 0.8865735886758399,
+    "features_used": [
+      "log_views",
+      "like_ratio",
+      "dislike_ratio",
+      "comment_ratio",
+      "engagement_score",
+      "title_length",
+      "has_caps",
+      "tag_count",
+      "category_id",
+      "publish_hour",
+      "video_age_proxy"
+    ]
+  },
+  "clustering": {
+    "silhouette_score": 0.292280340122165,
+    "num_clusters": 5,
+    "features_used": [
+      "log_views",
+      "log_likes",
+      "log_dislikes",
+      "log_comments",
+      "like_ratio",
+      "engagement_score",
+      "title_length",
+      "tag_count",
+      "category_id",
+      "publish_hour",
+      "video_age_proxy"
+    ]
+  },
+  "regression": {
+    "rmse": 0.10950773260010202,
+    "mae": 0.06721957129463978,
+    "r2_score": 0.9968441594869886,
+    "features_used": [
+      "views",
+      "likes",
+      "dislikes",
+      "comment_count",
+      "like_ratio",
+      "engagement_score",
+      "title_length",
+      "tag_count",
+      "category_id",
+      "publish_hour",
+      "video_age_proxy"
+    ]
+  },
+  "training_timestamp": "2025-09-13T13:38:17.270717",
+  "dataset_size": 375940
+}

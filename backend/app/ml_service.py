@@ -18,9 +18,11 @@ class MLService:
         self.spark = None
         self.models = {}
         self.is_trained = False
+        self.metrics = {}
 
         self._init_spark()
         self.load_models_from_hdfs()
+        self.load_metrics()
 
     def _init_spark(self):
         try:
@@ -49,12 +51,29 @@ class MLService:
                 except Exception:
                     pass
             
-            self.is_trained = loaded_count == 3
+            self.is_trained = loaded_count == len(hdfs_model_paths)
             return self.is_trained
                 
         except Exception:
             self.is_trained = False
             return False
+
+    def load_metrics(self):
+        """Load model metrics from JSON file"""
+        import json
+        import os
+        try:
+            metrics_file = os.path.join(os.path.dirname(__file__), "../../spark/model_metrics.json")
+            if os.path.exists(metrics_file):
+                with open(metrics_file, 'r') as f:
+                    self.metrics = json.load(f)
+                print(f"Loaded metrics from {metrics_file}")
+            else:
+                print("Metrics file not found, using default values")
+                self.metrics = {}
+        except Exception as e:
+            print(f"Failed to load metrics: {e}")
+            self.metrics = {}
 
     def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
@@ -158,6 +177,10 @@ class MLService:
             import math
             log_views = math.log1p(views)
             
+            # New time-based features
+            publish_hour = float(video_data.get("publish_hour", 12))  # Default to noon
+            video_age_proxy = float(video_data.get("video_age_proxy", 2))  # Default to category 2
+            
             features = {
                 "log_views": float(log_views),
                 "like_ratio": likes / views,
@@ -167,7 +190,9 @@ class MLService:
                 "title_length": float(len(title)),
                 "has_caps": has_caps,
                 "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0),
-                "category_id": float(video_data.get("category_id", 0))
+                "category_id": float(video_data.get("category_id", 0)),
+                "publish_hour": publish_hour,
+                "video_age_proxy": video_age_proxy
             }
             
             schema = StructType([
@@ -179,7 +204,9 @@ class MLService:
                 StructField("title_length", DoubleType(), True),
                 StructField("has_caps", DoubleType(), True),
                 StructField("tag_count", DoubleType(), True),
-                StructField("category_id", DoubleType(), True)
+                StructField("category_id", DoubleType(), True),
+                StructField("publish_hour", DoubleType(), True),
+                StructField("video_age_proxy", DoubleType(), True)
             ])
             
             return self.spark.createDataFrame([tuple(features.values())], schema)
@@ -195,6 +222,10 @@ class MLService:
             comment_count = float(video_data.get("comment_count", 0))
             title = video_data.get("title", "")
             
+            # New time-based features
+            publish_hour = float(video_data.get("publish_hour", 12))
+            video_age_proxy = float(video_data.get("video_age_proxy", 2))
+            
             features = {
                 "views": views,
                 "likes": likes,
@@ -204,7 +235,9 @@ class MLService:
                 "engagement_score": (likes + comment_count) / views,
                 "title_length": float(len(title)),
                 "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0),
-                "category_id": float(video_data.get("category_id", 0))
+                "category_id": float(video_data.get("category_id", 0)),
+                "publish_hour": publish_hour,
+                "video_age_proxy": video_age_proxy
             }
             
             schema = StructType([
@@ -216,7 +249,9 @@ class MLService:
                 StructField("engagement_score", DoubleType(), True),
                 StructField("title_length", DoubleType(), True),
                 StructField("tag_count", DoubleType(), True),
-                StructField("category_id", DoubleType(), True)
+                StructField("category_id", DoubleType(), True),
+                StructField("publish_hour", DoubleType(), True),
+                StructField("video_age_proxy", DoubleType(), True)
             ])
             
             return self.spark.createDataFrame([tuple(features.values())], schema)
@@ -231,6 +266,10 @@ class MLService:
             dislikes = float(video_data.get("dislikes", 0))
             comment_count = float(video_data.get("comment_count", 0))
             title = video_data.get("title", "")
+            
+            # New time-based features
+            publish_hour = float(video_data.get("publish_hour", 12))
+            video_age_proxy = float(video_data.get("video_age_proxy", 2))
             
             import math
             log_views = math.log1p(views)
@@ -247,7 +286,9 @@ class MLService:
                 "engagement_score": (likes + comment_count) / views,
                 "title_length": float(len(title)),
                 "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0),
-                "category_id": float(video_data.get("category_id", 0))
+                "category_id": float(video_data.get("category_id", 0)),
+                "publish_hour": publish_hour,
+                "video_age_proxy": video_age_proxy
             }
             
             schema = StructType([
@@ -259,7 +300,9 @@ class MLService:
                 StructField("engagement_score", DoubleType(), True),
                 StructField("title_length", DoubleType(), True),
                 StructField("tag_count", DoubleType(), True),
-                StructField("category_id", DoubleType(), True)
+                StructField("category_id", DoubleType(), True),
+                StructField("publish_hour", DoubleType(), True),
+                StructField("video_age_proxy", DoubleType(), True)
             ])
             
             df = self.spark.createDataFrame([tuple(features.values())], schema)
@@ -328,7 +371,8 @@ class MLService:
             "storage": "HDFS",
             "model_details": model_details,
             "total_models": len(self.models),
-            "spark_session": self.spark is not None
+            "spark_session": self.spark is not None,
+            "metrics": self.metrics
         }
 
     def __del__(self):
