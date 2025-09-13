@@ -39,6 +39,19 @@ const PredictionForm = ({
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tên kênh
+            </label>
+            <input
+              type="text"
+              value={videoData.channel_title}
+              onChange={(e) => handleInputChange("channel_title", e.target.value)}
+              placeholder="Nhập tên kênh..."
+              className="input-field"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -111,11 +124,19 @@ const PredictionForm = ({
               className="input-field"
             >
               <option value={0}>Chọn danh mục</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+              {Array.isArray(categories) ? (
+                categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))
+              ) : (
+                Object.entries(categories || {}).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -132,42 +153,7 @@ const PredictionForm = ({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Giờ đăng (0-23)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="23"
-                value={videoData.publish_hour}
-                onChange={(e) =>
-                  handleInputChange("publish_hour", e.target.value)
-                }
-                placeholder="12"
-                className="input-field"
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Độ tuổi video (1-4)
-              </label>
-              <select
-                value={videoData.video_age_proxy}
-                onChange={(e) =>
-                  handleInputChange("video_age_proxy", e.target.value)
-                }
-                className="input-field"
-              >
-                <option value={1}>Rất mới (0-1 ngày)</option>
-                <option value={2}>Mới (2-7 ngày)</option>
-                <option value={3}>Gần đây (8-30 ngày)</option>
-                <option value={4}>Cũ (&gt;30 ngày)</option>
-              </select>
-            </div>
-          </div>
         </div>
       </div>
 

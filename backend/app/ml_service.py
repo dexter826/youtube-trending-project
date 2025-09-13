@@ -34,6 +34,9 @@ class MLService:
         self.feature_processor = FeatureProcessor(self.spark)
         self.predictor = Predictor(self.model_loader, self.feature_processor)
         self.evaluator = ModelEvaluator(self.model_loader, self.db)
+        
+        # Set log level to reduce noise
+        self.spark.sparkContext.setLogLevel("ERROR")
 
     def _init_spark(self):
         try:

@@ -15,7 +15,13 @@ export const useModelData = () => {
           fetchCategories(),
         ]);
         setMlHealth(healthData);
-        setCategories(categoriesData.categories || []);
+        // Transform categories from object to array format
+        const categoriesObj = categoriesData.categories || {};
+        const categoriesArray = Object.entries(categoriesObj).map(([id, name]) => ({
+          id: parseInt(id),
+          name: name
+        }));
+        setCategories(categoriesArray);
       } catch (err) {
         // Error handled by ApiContext
       }

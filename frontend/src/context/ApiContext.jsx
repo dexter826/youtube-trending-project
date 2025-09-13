@@ -100,15 +100,15 @@ export const ApiProvider = ({ children }) => {
   }, [apiCall]);
 
   const predictTrending = useCallback(async (videoData) => {
-    return apiCall('POST', '/ml/predict', videoData);
+    return apiCall('POST', '/ml/predict/trending', videoData);
   }, [apiCall]);
 
   const predictViews = useCallback(async (videoData) => {
-    return apiCall('POST', '/ml/predict-views', videoData);
+    return apiCall('POST', '/ml/predict/views', videoData);
   }, [apiCall]);
 
   const predictCluster = useCallback(async (videoData) => {
-    return apiCall('POST', '/ml/clustering', videoData);
+    return apiCall('POST', '/ml/predict/cluster', videoData);
   }, [apiCall]);
 
   // Data processing

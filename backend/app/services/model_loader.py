@@ -35,6 +35,7 @@ class ModelLoader:
         """Load trained models from HDFS"""
         try:
             if not self.spark:
+                print("DEBUG: Spark session not initialized")
                 raise HTTPException(status_code=503, detail="Spark session not initialized")
 
             hdfs_model_paths = {
@@ -46,16 +47,24 @@ class ModelLoader:
             loaded_count = 0
             for model_name, hdfs_path in hdfs_model_paths.items():
                 try:
+                    print(f"DEBUG: Attempting to load {model_name} from {hdfs_path}")
                     model = PipelineModel.load(hdfs_path)
+                    print(f"DEBUG: Successfully loaded {model_name}")
                     self.models[model_name] = model
                     loaded_count += 1
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"DEBUG: Failed to load {model_name} from {hdfs_path}: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
 
+            print(f"DEBUG: Loaded {loaded_count}/{len(hdfs_model_paths)} models")
             self.is_trained = loaded_count == len(hdfs_model_paths)
             return self.is_trained
 
-        except Exception:
+        except Exception as e:
+            print(f"DEBUG: Error in load_models_from_hdfs: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.is_trained = False
             return False
 

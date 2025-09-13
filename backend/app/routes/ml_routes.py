@@ -41,10 +41,10 @@ async def health_check():
 async def train_ml_models():
     """Train ML models"""
     try:
-        if get_ml_service is None:
+        if router.get_ml_service is None:
             raise HTTPException(status_code=500, detail="ML service not initialized")
             
-        ml_service = get_ml_service()
+        ml_service = router.get_ml_service()
         if ml_service is None:
             raise HTTPException(status_code=500, detail="ML service not available")
         
@@ -56,31 +56,44 @@ async def train_ml_models():
 async def predict_trending(video_data: VideoMLInput):
     """Predict if a video will be trending"""
     try:
-        ml_service = get_ml_service()
+        print(f"DEBUG: /predict/trending called with: {video_data.dict()}")
+        ml_service = router.get_ml_service()
         if not ml_service:
             raise HTTPException(status_code=500, detail="ML service not initialized")
 
+        # Debug model status
+        print(f"DEBUG: is_trained: {ml_service.is_trained}")
+        print(f"DEBUG: models keys: {list(ml_service.models.keys())}")
+        print(f"DEBUG: trending_classifier type: {type(ml_service.models.get('trending_classifier'))}")
+
         video_dict = video_data.dict()
-        result = await ml_service.predict_trending(video_dict)
+        result = ml_service.predict_trending(video_dict)
+        print(f"DEBUG: Prediction result: {result}")
 
         return {
             "prediction": result,
             "input_data": video_dict,
             "timestamp": datetime.now().isoformat()
         }
+    except HTTPException as e:
+        print(f"DEBUG: HTTPException: {e.detail}")
+        raise e
     except Exception as e:
+        print(f"DEBUG: Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 @router.post("/predict/views")
 async def predict_views(video_data: VideoMLInput):
     """Predict view count for a video"""
     try:
-        ml_service = get_ml_service()
+        ml_service = router.get_ml_service()
         if not ml_service:
             raise HTTPException(status_code=500, detail="ML service not initialized")
 
         video_dict = video_data.dict()
-        result = await ml_service.predict_views(video_dict)
+        result = ml_service.predict_views(video_dict)
 
         return {
             "prediction": result,
@@ -94,12 +107,12 @@ async def predict_views(video_data: VideoMLInput):
 async def predict_cluster(video_data: VideoMLInput):
     """Predict content cluster for a video"""
     try:
-        ml_service = get_ml_service()
+        ml_service = router.get_ml_service()
         if not ml_service:
             raise HTTPException(status_code=500, detail="ML service not initialized")
 
         video_dict = video_data.dict()
-        result = await ml_service.predict_cluster(video_dict)
+        result = ml_service.predict_cluster(video_dict)
 
         return {
             "prediction": result,

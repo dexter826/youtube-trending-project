@@ -31,7 +31,19 @@ class SparkManager:
                 "spark.sql.adaptive.enabled": "true",
                 "spark.sql.adaptive.coalescePartitions.enabled": "true",
                 "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
-                "spark.hadoop.fs.defaultFS": "hdfs://localhost:9000"
+                "spark.hadoop.fs.defaultFS": "hdfs://localhost:9000",
+                # Network and connection settings
+                "spark.network.timeout": "300s",
+                "spark.executor.heartbeatInterval": "60s",
+                "spark.driver.host": "localhost",
+                "spark.driver.bindAddress": "localhost",
+                # Prevent connection issues
+                "spark.ui.enabled": "false",
+                "spark.sql.execution.arrow.pyspark.enabled": "true",
+                "spark.sql.execution.arrow.maxRecordsPerBatch": "1000",
+                # Reduce memory pressure
+                "spark.sql.adaptive.skewJoin.enabled": "true",
+                "spark.sql.adaptive.localShuffleReader.enabled": "true"
             }
 
             # Apply custom config if provided
@@ -81,8 +93,10 @@ PRODUCTION_CONFIGS = {
         "spark.driver.maxResultSize": "4g"
     },
     "ml_inference": {
-        "spark.driver.memory": "2g",
-        "spark.executor.memory": "2g",
-        "spark.driver.maxResultSize": "1g"
+        "spark.driver.memory": "1g",
+        "spark.executor.memory": "1g",
+        "spark.driver.maxResultSize": "512m",
+        "spark.sql.shuffle.partitions": "10",
+        "spark.default.parallelism": "4"
     }
 }

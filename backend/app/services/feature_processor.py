@@ -16,6 +16,7 @@ class FeatureProcessor:
     def create_trending_dataframe(self, video_data: Dict[str, Any]):
         """Create DataFrame for trending classification model"""
         try:
+            print(f"DEBUG: Starting create_trending_dataframe with: {video_data}")
             views = max(float(video_data.get("views", 1)), 1)
             likes = float(video_data.get("likes", 0))
             dislikes = float(video_data.get("dislikes", 0))
@@ -42,6 +43,7 @@ class FeatureProcessor:
                 "publish_hour": publish_hour,
                 "video_age_proxy": video_age_proxy
             }
+            print(f"DEBUG: Created features: {features}")
 
             schema = StructType([
                 StructField("log_views", DoubleType(), True),
@@ -57,9 +59,14 @@ class FeatureProcessor:
                 StructField("video_age_proxy", DoubleType(), True)
             ])
 
-            return self.spark.createDataFrame([tuple(features.values())], schema)
+            df = self.spark.createDataFrame([tuple(features.values())], schema)
+            print(f"DEBUG: DataFrame created with {df.count()} rows")
+            return df
 
         except Exception as e:
+            print(f"DEBUG: Error in create_trending_dataframe: {str(e)}")
+            import traceback
+            traceback.print_exc()
             raise HTTPException(status_code=400, detail="Invalid input data format")
 
     def create_regression_dataframe(self, video_data: Dict[str, Any]):
