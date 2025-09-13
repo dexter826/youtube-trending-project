@@ -6,6 +6,7 @@ import os
 import sys
 import subprocess
 import time
+from config.paths import path_config
 
 def run_command(cmd, description):
     try:
@@ -18,7 +19,6 @@ def check_hdfs_directories():
     directories = [
         "/youtube_trending",
         "/youtube_trending/raw_data",
-        "/youtube_trending/processed",
         "/youtube_trending/models"
     ]
     
@@ -27,7 +27,7 @@ def check_hdfs_directories():
         run_command(cmd, f"Creating HDFS directory: {directory}")
 
 def copy_data_to_hdfs():
-    data_dir = "C:\\BigData\\youtube-trending-project\\data"
+    data_dir = str(path_config.DATA_DIR)
     countries = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']
     
     for country in countries:
@@ -46,19 +46,19 @@ def copy_data_to_hdfs():
                 run_command(f"hdfs dfs -put -f {category_file} {hdfs_cat_path}", f"Copying {country} categories JSON")
 
 def run_spark_data_processing():
-    spark_script = "C:\\BigData\\youtube-trending-project\\spark\\jobs\\process_trending.py"
-    fallback_data = "C:\\BigData\\youtube-trending-project\\data"
+    spark_script = str(path_config.SPARK_PROCESS_SCRIPT)
+    fallback_data = str(path_config.DATA_DIR)
     
     cmd = f"spark-submit {spark_script} {fallback_data}"
     return run_command(cmd, "Spark Data Processing Job")
 
 def run_model_training():
-    training_script = "C:\\BigData\\youtube-trending-project\\spark\\train_models.py"
+    training_script = str(path_config.SPARK_TRAIN_SCRIPT)
     cmd = f"spark-submit {training_script}"
     return run_command(cmd, "ML Model Training Job")
 
 def start_backend_api():
-    backend_dir = "C:\\BigData\\youtube-trending-project\\backend"
+    backend_dir = str(path_config.BACKEND_DIR)
     cmd = f"cd {backend_dir} && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
     
     try:
@@ -69,7 +69,7 @@ def start_backend_api():
         return False
 
 def start_frontend():
-    frontend_dir = "C:\\BigData\\youtube-trending-project\\frontend"
+    frontend_dir = str(path_config.FRONTEND_DIR)
     cmd = f"cd {frontend_dir} && npm install && npm start"
     
     try:
