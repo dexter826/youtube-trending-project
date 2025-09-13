@@ -143,9 +143,11 @@ class MLService:
             cluster = int(result["cluster"])
             
             cluster_types = {
-                0: "Music & Entertainment",
-                1: "Educational & Tech", 
-                2: "News & Viral",
+                0: "High-Engagement Entertainment",  # Based on category 24 patterns
+                1: "Educational & Tech Content",     # Based on category 28 patterns
+                2: "News & Viral Content",           # Based on category 25 patterns
+                3: "Music & Audio Content",          # Based on category 10 patterns
+                4: "Gaming & Interactive",           # Based on category 20 patterns
             }
             
             cluster_type = cluster_types.get(cluster, "Other")
