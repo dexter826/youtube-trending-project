@@ -8,15 +8,20 @@ from pymongo import MongoClient
 from datetime import datetime
 import os
 import sys
+import logging
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from backend.app.ml_service import get_ml_service, initialize_ml_service
-from backend.app.routes.trending_routes import *
-from backend.app.routes.ml_routes import *
+from backend.app.routes.trending_routes import router as trending_router
+from backend.app.routes.ml_routes import router as ml_router
 from backend.app.utils.response_utils import JSONEncoder
 
 # MongoDB connection
@@ -47,8 +52,9 @@ client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 
 # Set database connections for routes
-set_database(db)
-set_ml_service_getter(get_ml_service)
+trending_router.db = db
+ml_router.db = db
+ml_router.get_ml_service = get_ml_service
 
 @app.on_event("startup")
 async def startup_event():
@@ -65,22 +71,8 @@ async def shutdown_event():
     client.close()
 
 # Include routes
-app.get("/")(root)
-app.get("/health")(health_check)
-app.get("/countries")(get_countries)
-app.get("/categories")(get_categories)
-app.get("/dates")(get_dates)
-app.get("/trending")(get_trending_videos)
-app.get("/statistics")(get_statistics)
-app.get("/wordcloud")(get_wordcloud_data)
-app.get("/admin/database-stats")(get_database_stats)
-
-# ML routes
-app.get("/ml/health")(ml_health)
-app.post("/ml/train")(train_ml_models)
-app.post("/ml/predict")(predict_trending)
-app.post("/ml/predict-views")(predict_views)
-app.post("/ml/clustering")(predict_cluster)
+app.include_router(trending_router, prefix="", tags=["trending"])
+app.include_router(ml_router, prefix="/ml", tags=["ml"])
 
 if __name__ == "__main__":
     import uvicorn
