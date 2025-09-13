@@ -26,6 +26,9 @@ class YouTubeMLTrainer:
         """Initialize ML trainer"""
         self.spark = get_spark_session("YouTubeMLTrainer", PRODUCTION_CONFIGS["ml_training"])
         self.db = get_database_connection()
+        # Get the MongoDB client from the manager for proper cleanup
+        from core.database_manager import _manager
+        self.mongo_client = _manager._client
         self.hdfs_base_path = "hdfs://localhost:9000/youtube_trending"
         self.models_path = f"{self.hdfs_base_path}/models"
 
@@ -94,28 +97,38 @@ class YouTubeMLTrainer:
 
     def train_clustering_model(self, df):
         """Train clustering model"""
+        category_counts = df.groupBy("category_id").count().orderBy("count", ascending=False)
+        category_counts.show(10)
+        
         feature_cols = [
             "views", "likes", "dislikes", "comment_count",
-            "like_ratio", "engagement_score", "title_length", "tag_count"
+            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id"
         ]
 
         data = df.select(feature_cols).na.fill(0)
 
         data = data.withColumn("log_views", log(col("views") + 1)) \
                   .withColumn("log_likes", log(col("likes") + 1)) \
+                  .withColumn("log_dislikes", log(col("dislikes") + 1)) \
                   .withColumn("log_comments", log(col("comment_count") + 1))
 
         cluster_features = [
-            "log_views", "log_likes", "log_comments",
-            "like_ratio", "engagement_score", "title_length", "tag_count"
+            "log_views", "log_likes", "log_dislikes", "log_comments",
+            "like_ratio", "engagement_score", "title_length", "tag_count", "category_id"
         ]
 
         assembler = VectorAssembler(inputCols=cluster_features, outputCol="features")
         scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
-        kmeans = KMeans(featuresCol="scaledFeatures", predictionCol="cluster", k=5, seed=42, maxIter=100)
+        kmeans = KMeans(featuresCol="scaledFeatures", predictionCol="cluster", k=3, seed=42, maxIter=200)
 
         pipeline = Pipeline(stages=[assembler, scaler, kmeans])
         model = pipeline.fit(data)
+
+        # Evaluate clustering
+        predictions = model.transform(data)
+        evaluator = ClusteringEvaluator(predictionCol="cluster", featuresCol="scaledFeatures")
+        silhouette = evaluator.evaluate(predictions)
+        print(f"Silhouette score: {silhouette}")
 
         model_path = f"{self.models_path}/clustering"
         model.write().overwrite().save(model_path)
@@ -125,7 +138,7 @@ class YouTubeMLTrainer:
     def train_regression_model(self, df):
         """Train regression model"""
         feature_cols = [
-            "likes", "dislikes", "comment_count", "like_ratio",
+            "views", "likes", "dislikes", "comment_count", "like_ratio",
             "engagement_score", "title_length", "tag_count", "category_id"
         ]
 

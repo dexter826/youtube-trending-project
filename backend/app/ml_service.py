@@ -5,7 +5,8 @@ Machine Learning Service
 from typing import Dict, Any
 from fastapi import HTTPException
 from pyspark.ml import PipelineModel
-from pyspark.sql.types import StructType, StructField, DoubleType, IntegerType
+from pyspark.sql.types import StructType, StructField, DoubleType
+import math
 
 from spark.core.spark_manager import get_spark_session, PRODUCTION_CONFIGS
 from spark.core.database_manager import get_database_connection
@@ -91,7 +92,8 @@ class MLService:
             
             result = predictions.select("prediction").collect()[0]
             predicted_log_views = float(result["prediction"])
-            predicted_views = int(max(0, predicted_log_views))
+            print(f"DEBUG: Raw prediction (log_views): {predicted_log_views}")
+            predicted_views = int(max(0, math.exp(predicted_log_views) - 1))
             
             return {
                 "predicted_views": predicted_views,
@@ -116,14 +118,9 @@ class MLService:
             cluster = int(result["cluster"])
             
             cluster_types = {
-                0: "Entertainment",
-                1: "Educational", 
-                2: "Music",
-                3: "Gaming",
-                4: "News",
-                5: "Tech",
-                6: "Sports",
-                7: "Other"
+                0: "Music & Entertainment",
+                1: "Educational & Tech", 
+                2: "News & Viral",
             }
             
             cluster_type = cluster_types.get(cluster, "Other")
@@ -188,6 +185,7 @@ class MLService:
             title = video_data.get("title", "")
             
             features = {
+                "views": views,
                 "likes": likes,
                 "dislikes": dislikes,
                 "comment_count": comment_count,
@@ -199,6 +197,7 @@ class MLService:
             }
             
             schema = StructType([
+                StructField("views", DoubleType(), True),
                 StructField("likes", DoubleType(), True),
                 StructField("dislikes", DoubleType(), True),
                 StructField("comment_count", DoubleType(), True),
@@ -218,35 +217,42 @@ class MLService:
         try:
             views = max(float(video_data.get("views", 1)), 1)
             likes = float(video_data.get("likes", 0))
+            dislikes = float(video_data.get("dislikes", 0))
             comment_count = float(video_data.get("comment_count", 0))
             title = video_data.get("title", "")
             
             import math
             log_views = math.log1p(views)
             log_likes = math.log1p(likes)
+            log_dislikes = math.log1p(dislikes)
             log_comments = math.log1p(comment_count)
             
             features = {
                 "log_views": float(log_views),
                 "log_likes": float(log_likes),
+                "log_dislikes": float(log_dislikes),
                 "log_comments": float(log_comments),
                 "like_ratio": likes / views,
                 "engagement_score": (likes + comment_count) / views,
                 "title_length": float(len(title)),
-                "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0)
+                "tag_count": float(len(video_data.get("tags", "").split("|")) if video_data.get("tags") else 0),
+                "category_id": float(video_data.get("category_id", 0))
             }
             
             schema = StructType([
                 StructField("log_views", DoubleType(), True),
                 StructField("log_likes", DoubleType(), True),
+                StructField("log_dislikes", DoubleType(), True),
                 StructField("log_comments", DoubleType(), True),
                 StructField("like_ratio", DoubleType(), True),
                 StructField("engagement_score", DoubleType(), True),
                 StructField("title_length", DoubleType(), True),
-                StructField("tag_count", DoubleType(), True)
+                StructField("tag_count", DoubleType(), True),
+                StructField("category_id", DoubleType(), True)
             ])
             
-            return self.spark.createDataFrame([tuple(features.values())], schema)
+            df = self.spark.createDataFrame([tuple(features.values())], schema)
+            return df
             
         except Exception as e:
             raise HTTPException(status_code=400, detail="Invalid input data format")
