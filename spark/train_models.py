@@ -165,7 +165,7 @@ class YouTubeMLTrainer:
         assembler = VectorAssembler(inputCols=cluster_features, outputCol="features")
         scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
         # Increase k to 5 for better clustering granularity
-        kmeans = KMeans(featuresCol="scaledFeatures", predictionCol="cluster", k=5, seed=42, maxIter=200)
+        kmeans = KMeans(featuresCol="scaledFeatures", predictionCol="cluster", k=4, seed=42, maxIter=200)
 
         pipeline = Pipeline(stages=[assembler, scaler, kmeans])
         model = pipeline.fit(data)
@@ -179,7 +179,7 @@ class YouTubeMLTrainer:
         # Save clustering metrics
         clustering_metrics = {
             "silhouette_score": float(silhouette),
-            "num_clusters": 5,
+            "num_clusters": 4,
             "features_used": cluster_features
         }
 

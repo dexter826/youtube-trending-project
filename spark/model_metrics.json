@@ -1,10 +1,10 @@
 {
   "trending": {
-    "auc": 0.9430795798973505,
-    "accuracy": 0.8912872159963668,
-    "precision": 0.8861302926501538,
-    "recall": 0.8912872159963668,
-    "f1_score": 0.8865735886758399,
+    "auc": 0.9652457311018515,
+    "accuracy": 0.938824849399602,
+    "precision": 0.934434207066867,
+    "recall": 0.938824849399602,
+    "f1_score": 0.9352717406944211,
     "features_used": [
       "log_views",
       "like_ratio",
@@ -20,7 +20,7 @@
     ]
   },
   "clustering": {
-    "silhouette_score": 0.292280340122165,
+    "silhouette_score": 0.25749511259081415,
     "num_clusters": 5,
     "features_used": [
       "log_views",
@@ -37,9 +37,9 @@
     ]
   },
   "regression": {
-    "rmse": 0.10950773260010202,
-    "mae": 0.06721957129463978,
-    "r2_score": 0.9968441594869886,
+    "rmse": 0.10870007269978312,
+    "mae": 0.0673119129855456,
+    "r2_score": 0.9968911936826219,
     "features_used": [
       "views",
       "likes",
@@ -54,6 +54,6 @@
       "video_age_proxy"
     ]
   },
-  "training_timestamp": "2025-09-13T13:38:17.270717",
+  "training_timestamp": "2025-09-13T18:59:07.911666",
   "dataset_size": 375940
 }

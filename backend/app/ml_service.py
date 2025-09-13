@@ -14,15 +14,18 @@ from spark.core.database_manager import get_database_connection
 
 class MLService:
     def __init__(self):
+        """Initialize with production configs"""
         self.db = get_database_connection()
         self.spark = None
         self.models = {}
         self.is_trained = False
         self.metrics = {}
+        self.cluster_names = {}  # Add cluster names storage
 
         self._init_spark()
         self.load_models_from_hdfs()
         self.load_metrics()
+        self._load_cluster_names()  # Load dynamic cluster names
 
     def _init_spark(self):
         try:
@@ -142,15 +145,8 @@ class MLService:
             result = predictions.select("cluster").collect()[0]
             cluster = int(result["cluster"])
             
-            cluster_types = {
-                0: "High-Engagement Entertainment",  # Based on category 24 patterns
-                1: "Educational & Tech Content",     # Based on category 28 patterns
-                2: "News & Viral Content",           # Based on category 25 patterns
-                3: "Music & Audio Content",          # Based on category 10 patterns
-                4: "Gaming & Interactive",           # Based on category 20 patterns
-            }
-            
-            cluster_type = cluster_types.get(cluster, "Other")
+            # Use dynamic cluster names instead of hard-coded
+            cluster_type = self.cluster_names.get(str(cluster), f"Cluster {cluster}")
             
             return {
                 "cluster": cluster,
@@ -375,6 +371,38 @@ class MLService:
             "total_models": len(self.models),
             "spark_session": self.spark is not None,
             "metrics": self.metrics
+        }
+
+    def _load_cluster_names(self):
+        """Load dynamic cluster names from JSON file"""
+        import json
+        import os
+        try:
+            # Fix path to point to project root
+            current_dir = os.path.dirname(__file__)
+            cluster_file = os.path.join(current_dir, "../../cluster_names.json")
+            print(f"Current dir: {current_dir}")
+            print(f"Looking for cluster file at: {cluster_file}")
+            print(f"Absolute path: {os.path.abspath(cluster_file)}")
+            if os.path.exists(cluster_file):
+                with open(cluster_file, 'r', encoding='utf-8') as f:
+                    self.cluster_names = json.load(f)
+                print(f"Loaded dynamic cluster names from {cluster_file}")
+                print(f"Cluster names: {self.cluster_names}")
+            else:
+                print("Cluster names file not found, using fallback names")
+                self.cluster_names = self._get_fallback_cluster_names()
+        except Exception as e:
+            print(f"Failed to load cluster names: {e}, using fallback")
+            self.cluster_names = self._get_fallback_cluster_names()
+
+    def _get_fallback_cluster_names(self):
+        """Fallback cluster names if dynamic loading fails"""
+        return {
+            "0": "Nội dung Tác động Cao",
+            "1": "Nội dung Đại chúng", 
+            "2": "Nội dung Tiềm năng",
+            "3": "Nội dung Ổn định"
         }
 
     def __del__(self):

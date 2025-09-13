@@ -80,7 +80,7 @@ const PredictionPage = () => {
         cluster: {
           prediction: {
             cluster: 0,
-            cluster_type: "Music & Entertainment",
+            cluster_type: "Nội dung Tác động Cao",
             confidence: "high",
             method: "spark_mllib",
           },
@@ -117,8 +117,8 @@ const PredictionPage = () => {
         },
         cluster: {
           prediction: {
-            cluster: 0,
-            cluster_type: "Music & Entertainment",
+            cluster: 1,
+            cluster_type: "Nội dung Đại chúng",
             confidence: "high",
             method: "spark_mllib",
           },
@@ -156,7 +156,7 @@ const PredictionPage = () => {
         cluster: {
           prediction: {
             cluster: 2,
-            cluster_type: "News & Viral",
+            cluster_type: "Nội dung Tiềm năng",
             confidence: "high",
             method: "spark_mllib",
           },
@@ -230,7 +230,13 @@ const PredictionPage = () => {
   };
 
   const handlePredictAll = async () => {
-    setPredictionLoading((prev) => ({ ...prev, all: true, trending: true, views: true, cluster: true }));
+    setPredictionLoading((prev) => ({
+      ...prev,
+      all: true,
+      trending: true,
+      views: true,
+      cluster: true,
+    }));
     // Clear all predictions
     setPredictions({ trending: null, views: null, cluster: null });
     setSelectedSample(null);
@@ -249,7 +255,13 @@ const PredictionPage = () => {
     } catch (err) {
       // Error handled by ApiContext
     } finally {
-      setPredictionLoading((prev) => ({ ...prev, all: false, trending: false, views: false, cluster: false }));
+      setPredictionLoading((prev) => ({
+        ...prev,
+        all: false,
+        trending: false,
+        views: false,
+        cluster: false,
+      }));
     }
   };
 
@@ -287,7 +299,13 @@ const PredictionPage = () => {
     );
   };
 
-  const PredictionCard = ({ title, icon: Icon, result, color = "blue", type }) => (
+  const PredictionCard = ({
+    title,
+    icon: Icon,
+    result,
+    color = "blue",
+    type,
+  }) => (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
@@ -351,7 +369,9 @@ const PredictionPage = () => {
                       <td
                         className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
                       >
-                        {result.prediction.prediction === 1 ? "Có khả năng trending" : "Không trending"}
+                        {result.prediction.prediction === 1
+                          ? "Có khả năng trending"
+                          : "Không trending"}
                       </td>
                     </tr>
                   )}
@@ -384,7 +404,9 @@ const PredictionPage = () => {
                       <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                         Loại nội dung
                       </td>
-                      <td className={`border border-gray-300 px-4 py-2 text-sm`}>
+                      <td
+                        className={`border border-gray-300 px-4 py-2 text-sm`}
+                      >
                         <span
                           className={`px-2 py-1 bg-${color}-100 text-${color}-700 text-sm rounded-full`}
                         >
@@ -615,7 +637,9 @@ const PredictionPage = () => {
                     min="0"
                     max="23"
                     value={videoData.publish_hour}
-                    onChange={(e) => handleInputChange("publish_hour", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("publish_hour", e.target.value)
+                    }
                     placeholder="12"
                     className="input-field"
                   />
@@ -627,7 +651,9 @@ const PredictionPage = () => {
                   </label>
                   <select
                     value={videoData.video_age_proxy}
-                    onChange={(e) => handleInputChange("video_age_proxy", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("video_age_proxy", e.target.value)
+                    }
                     className="input-field"
                   >
                     <option value={1}>Rất mới (0-1 ngày)</option>
@@ -721,18 +747,20 @@ const PredictionPage = () => {
         <div className="flex items-center space-x-2 mb-4">
           <BarChart3 className="w-5 h-5 text-gray-600" />
           <h3 className="text-lg font-semibold text-gray-900">Dự đoán Mẫu</h3>
-          <span className="text-sm text-gray-500">(Click để chọn và kiểm tra)</span>
+          <span className="text-sm text-gray-500">
+            (Click để chọn và kiểm tra)
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Tech Review Sample Prediction */}
-          <div 
+          <div
             className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-              selectedSample === 'tech' 
-                ? 'border-blue-500 bg-blue-50 shadow-md' 
-                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+              selectedSample === "tech"
+                ? "border-blue-500 bg-blue-50 shadow-md"
+                : "border-gray-200 bg-gray-50 hover:border-gray-300"
             }`}
-            onClick={() => loadSample('tech')}
+            onClick={() => loadSample("tech")}
           >
             <h4 className="font-medium text-gray-900 mb-2">
               Tech Review Sample
@@ -754,11 +782,10 @@ const PredictionPage = () => {
                     }`}
                   />
                   <span className="text-sm font-semibold">
-                    {
-                      samplePredictions.tech.predictions.trending.prediction.prediction === 1
-                        ? "Có khả năng trending"
-                        : "Không trending"
-                    }
+                    {samplePredictions.tech.predictions.trending.prediction
+                      .prediction === 1
+                      ? "Có khả năng trending"
+                      : "Không trending"}
                   </span>
                 </div>
               </div>
@@ -767,7 +794,8 @@ const PredictionPage = () => {
                 <span className="text-sm text-gray-600">Lượt xem:</span>
                 <span className="text-sm font-semibold">
                   {formatNumber(
-                    samplePredictions.tech.predictions.views.prediction.predicted_views
+                    samplePredictions.tech.predictions.views.prediction
+                      .predicted_views
                   )}
                 </span>
               </div>
@@ -775,29 +803,30 @@ const PredictionPage = () => {
               <div>
                 <span className="text-sm text-gray-600">Cluster:</span>
                 <span className="text-sm font-semibold">
-                  {samplePredictions.tech.predictions.cluster.prediction.cluster}
+                  {
+                    samplePredictions.tech.predictions.cluster.prediction
+                      .cluster
+                  }
                 </span>
               </div>
 
               <div>
                 <span className="text-sm text-gray-600">Loại nội dung:</span>
                 <span className="text-sm font-semibold">
-                  {
-                    samplePredictions.tech.predictions.cluster.prediction.cluster_type
-                  }
+                  High-View Medium-Engagement SEO-Optimized (Entertainment)
                 </span>
               </div>
             </div>
           </div>
 
           {/* Entertainment Sample Prediction */}
-          <div 
+          <div
             className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-              selectedSample === 'entertainment' 
-                ? 'border-blue-500 bg-blue-50 shadow-md' 
-                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+              selectedSample === "entertainment"
+                ? "border-blue-500 bg-blue-50 shadow-md"
+                : "border-gray-200 bg-gray-50 hover:border-gray-300"
             }`}
-            onClick={() => loadSample('entertainment')}
+            onClick={() => loadSample("entertainment")}
           >
             <h4 className="font-medium text-gray-900 mb-2">
               Entertainment Sample
@@ -809,22 +838,20 @@ const PredictionPage = () => {
                 <div className="flex items-center">
                   <div
                     className={`w-3 h-3 rounded-full mr-2 ${
-                      samplePredictions.entertainment.predictions.trending.prediction
-                        .trending_probability > 0.7
+                      samplePredictions.entertainment.predictions.trending
+                        .prediction.trending_probability > 0.7
                         ? "bg-green-500"
-                        : samplePredictions.entertainment.predictions.trending.prediction
-                            .trending_probability > 0.4
+                        : samplePredictions.entertainment.predictions.trending
+                            .prediction.trending_probability > 0.4
                         ? "bg-yellow-500"
                         : "bg-red-500"
                     }`}
                   />
                   <span className="text-sm font-semibold">
-                    {
-                      samplePredictions.entertainment.predictions.trending.prediction
-                        .prediction === 1
-                        ? "Có khả năng trending"
-                        : "Không trending"
-                    }
+                    {samplePredictions.entertainment.predictions.trending
+                      .prediction.prediction === 1
+                      ? "Có khả năng trending"
+                      : "Không trending"}
                   </span>
                 </div>
               </div>
@@ -842,7 +869,10 @@ const PredictionPage = () => {
               <div>
                 <span className="text-sm text-gray-600">Cluster:</span>
                 <span className="text-sm font-semibold">
-                  {samplePredictions.entertainment.predictions.cluster.prediction.cluster}
+                  {
+                    samplePredictions.entertainment.predictions.cluster
+                      .prediction.cluster
+                  }
                 </span>
               </div>
 
@@ -850,8 +880,8 @@ const PredictionPage = () => {
                 <span className="text-sm text-gray-600">Loại nội dung:</span>
                 <span className="text-sm font-semibold">
                   {
-                    samplePredictions.entertainment.predictions.cluster.prediction
-                      .cluster_type
+                    samplePredictions.entertainment.predictions.cluster
+                      .prediction.cluster_type
                   }
                 </span>
               </div>
@@ -859,17 +889,15 @@ const PredictionPage = () => {
           </div>
 
           {/* Trending Sample Prediction */}
-          <div 
+          <div
             className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-              selectedSample === 'trending' 
-                ? 'border-blue-500 bg-blue-50 shadow-md' 
-                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+              selectedSample === "trending"
+                ? "border-blue-500 bg-blue-50 shadow-md"
+                : "border-gray-200 bg-gray-50 hover:border-gray-300"
             }`}
-            onClick={() => loadSample('trending')}
+            onClick={() => loadSample("trending")}
           >
-            <h4 className="font-medium text-gray-900 mb-2">
-              Trending Sample
-            </h4>
+            <h4 className="font-medium text-gray-900 mb-2">Trending Sample</h4>
 
             <div className="space-y-2">
               <div>
@@ -880,18 +908,17 @@ const PredictionPage = () => {
                       samplePredictions.trending.predictions.trending.prediction
                         .trending_probability > 0.7
                         ? "bg-green-500"
-                        : samplePredictions.trending.predictions.trending.prediction
-                            .trending_probability > 0.4
+                        : samplePredictions.trending.predictions.trending
+                            .prediction.trending_probability > 0.4
                         ? "bg-yellow-500"
                         : "bg-red-500"
                     }`}
                   />
                   <span className="text-sm font-semibold">
-                    {
-                      samplePredictions.trending.predictions.trending.prediction.prediction === 1
-                        ? "Có khả năng trending"
-                        : "Không trending"
-                    }
+                    {samplePredictions.trending.predictions.trending.prediction
+                      .prediction === 1
+                      ? "Có khả năng trending"
+                      : "Không trending"}
                   </span>
                 </div>
               </div>
@@ -900,7 +927,8 @@ const PredictionPage = () => {
                 <span className="text-sm text-gray-600">Lượt xem:</span>
                 <span className="text-sm font-semibold">
                   {formatNumber(
-                    samplePredictions.trending.predictions.views.prediction.predicted_views
+                    samplePredictions.trending.predictions.views.prediction
+                      .predicted_views
                   )}
                 </span>
               </div>
@@ -908,7 +936,10 @@ const PredictionPage = () => {
               <div>
                 <span className="text-sm text-gray-600">Cluster:</span>
                 <span className="text-sm font-semibold">
-                  {samplePredictions.trending.predictions.cluster.prediction.cluster}
+                  {
+                    samplePredictions.trending.predictions.cluster.prediction
+                      .cluster
+                  }
                 </span>
               </div>
 
@@ -916,7 +947,8 @@ const PredictionPage = () => {
                 <span className="text-sm text-gray-600">Loại nội dung:</span>
                 <span className="text-sm font-semibold">
                   {
-                    samplePredictions.trending.predictions.cluster.prediction.cluster_type
+                    samplePredictions.trending.predictions.cluster.prediction
+                      .cluster_type
                   }
                 </span>
               </div>
