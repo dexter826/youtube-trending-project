@@ -21,6 +21,9 @@ class PathConfig:
     # Spark subdirectories
     SPARK_CORE_DIR = SPARK_DIR / "core"
     SPARK_JOBS_DIR = SPARK_DIR / "jobs"
+    SPARK_ANALYSIS_DIR = SPARK_DIR / "analysis"
+    SPARK_MODELS_DIR = SPARK_DIR / "models"
+    SPARK_METRICS_DIR = SPARK_MODELS_DIR / "metrics"
 
     # Backend subdirectories
     BACKEND_APP_DIR = BACKEND_DIR / "app"
@@ -28,6 +31,7 @@ class PathConfig:
     # Script files
     SPARK_PROCESS_SCRIPT = SPARK_JOBS_DIR / "process_trending.py"
     SPARK_TRAIN_SCRIPT = SPARK_DIR / "train_models.py"
+    SPARK_ANALYZE_CLUSTERS_SCRIPT = SPARK_ANALYSIS_DIR / "analyze_clusters.py"
 
     # Config files
     SPARK_MANAGER = SPARK_CORE_DIR / "spark_manager.py"
@@ -62,6 +66,7 @@ class PathConfig:
         required_files = [
             cls.SPARK_PROCESS_SCRIPT,
             cls.SPARK_TRAIN_SCRIPT,
+            cls.SPARK_ANALYZE_CLUSTERS_SCRIPT,
             cls.SPARK_MANAGER,
             cls.DATABASE_MANAGER
         ]

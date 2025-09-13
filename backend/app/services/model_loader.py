@@ -62,7 +62,14 @@ class ModelLoader:
     def load_metrics(self):
         """Load model metrics from JSON file"""
         try:
-            metrics_file = os.path.join(os.path.dirname(__file__), "../../../spark/model_metrics.json")
+            # Import path_config for proper path management
+            import sys
+            from pathlib import Path
+            project_root = Path(__file__).parent.parent.parent.parent
+            sys.path.insert(0, str(project_root))
+            from config.paths import path_config
+            
+            metrics_file = path_config.SPARK_METRICS_DIR / "model_metrics.json"
             if os.path.exists(metrics_file):
                 with open(metrics_file, 'r') as f:
                     self.metrics = json.load(f)
@@ -74,7 +81,14 @@ class ModelLoader:
     def _load_cluster_names(self):
         """Load dynamic cluster names from JSON file"""
         try:
-            cluster_file = os.path.join(os.path.dirname(__file__), "../../../spark/cluster_names.json")
+            # Import path_config for proper path management
+            import sys
+            from pathlib import Path
+            project_root = Path(__file__).parent.parent.parent.parent
+            sys.path.insert(0, str(project_root))
+            from config.paths import path_config
+            
+            cluster_file = path_config.SPARK_ANALYSIS_DIR / "cluster_names.json"
             if os.path.exists(cluster_file):
                 with open(cluster_file, 'r', encoding='utf-8') as f:
                     self.cluster_names = json.load(f)

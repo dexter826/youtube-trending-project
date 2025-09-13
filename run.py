@@ -134,6 +134,14 @@ class ProjectRunner:
         ):
             return False
 
+        # Analyze clusters for dynamic naming
+        analyze_script = str(path_config.SPARK_ANALYZE_CLUSTERS_SCRIPT)
+        if not self.run_command(
+            f"python {analyze_script}",
+            "Analyzing clusters"
+        ):
+            return False
+
         print("✅ Pipeline completed successfully!")
         return True
 

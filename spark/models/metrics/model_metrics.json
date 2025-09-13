@@ -1,6 +1,6 @@
 {
   "trending": {
-    "auc": 0.9652457311018515,
+    "auc": 0.965244544910203,
     "accuracy": 0.938824849399602,
     "precision": 0.934434207066867,
     "recall": 0.938824849399602,
@@ -54,6 +54,6 @@
       "video_age_proxy"
     ]
   },
-  "training_timestamp": "2025-09-13T20:11:51.500736",
+  "training_timestamp": "2025-09-13T23:04:33.844786",
   "dataset_size": 375940
 }

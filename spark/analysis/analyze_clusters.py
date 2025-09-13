@@ -16,8 +16,8 @@ from pyspark.ml import PipelineModel
 from pyspark.sql import DataFrame
 
 # Import existing managers for consistency
-from spark.core.spark_manager import get_spark_session, PRODUCTION_CONFIGS
-from spark.core.database_manager import get_database_connection
+from ..core.spark_manager import get_spark_session, PRODUCTION_CONFIGS
+from ..core.database_manager import get_database_connection
 
 # Configure logging
 logging.basicConfig(
@@ -42,7 +42,16 @@ class ClusterAnalyzer:
         self.db = get_database_connection()
         self.mongo_client = self.db.client  # For proper cleanup
         self.hdfs_model_path = "hdfs://localhost:9000/youtube_trending/models/clustering"
-        self.output_path = "cluster_analysis_results.json"
+        
+        # Import path_config for proper path management
+        import sys
+        from pathlib import Path
+        project_root = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(project_root))
+        from config.paths import path_config
+        
+        self.output_path = path_config.SPARK_ANALYSIS_DIR / "cluster_analysis_results.json"
+        self.cluster_names_path = path_config.SPARK_ANALYSIS_DIR / "cluster_names.json"
 
         # Feature columns used in clustering (from train_models.py)
         self.cluster_features = [
@@ -295,10 +304,10 @@ class ClusterAnalyzer:
 
             # Also save simplified mapping for backend use
             mapping = {cid: data["name"] for cid, data in analysis.items()}
-            with open("cluster_names.json", 'w', encoding='utf-8') as f:
+            with open(self.cluster_names_path, 'w', encoding='utf-8') as f:
                 json.dump(mapping, f, indent=2, ensure_ascii=False)
 
-            logger.info("Cluster name mapping saved to cluster_names.json")
+            logger.info(f"Cluster name mapping saved to {self.cluster_names_path}")
 
         except Exception as e:
             logger.error(f"Failed to save results: {e}")
