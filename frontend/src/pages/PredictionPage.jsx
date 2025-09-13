@@ -60,9 +60,9 @@ const PredictionPage = () => {
       predictions: {
         trending: {
           prediction: {
-            trending_probability: 0.631,
-            prediction: 1,
-            confidence: "medium",
+            trending_probability: 0.014,
+            prediction: 0,
+            confidence: "high",
             method: "spark_mllib",
           },
         },
@@ -96,8 +96,8 @@ const PredictionPage = () => {
       predictions: {
         trending: {
           prediction: {
-            trending_probability: 0.726,
-            prediction: 1,
+            trending_probability: 0.025,
+            prediction: 0,
             confidence: "high",
             method: "spark_mllib",
           },
@@ -119,28 +119,28 @@ const PredictionPage = () => {
         },
       },
     },
-    education: {
+    trending: {
       data: {
-        title: "How Machine Learning Works - A Complete Guide",
-        views: 25000,
-        likes: 1200,
-        dislikes: 50,
-        comment_count: 300,
-        category_id: 27, // Education
-        tags: "machine learning|AI|tutorial|education|data science|programming",
+        title: "Breaking News: Major Event Shocks the World!",
+        views: 1000000,
+        likes: 150000,
+        dislikes: 5000,
+        comment_count: 25000,
+        category_id: 25, // News & Politics
+        tags: "news|breaking|viral|trending|world|event",
       },
       predictions: {
         trending: {
           prediction: {
-            trending_probability: 0.069,
-            prediction: 0,
+            trending_probability: 0.85,
+            prediction: 1,
             confidence: "high",
             method: "spark_mllib",
           },
         },
         views: {
           prediction: {
-            predicted_views: 25895,
+            predicted_views: 1200000,
             confidence: "high",
             method: "spark_mllib",
           },
@@ -341,7 +341,7 @@ const PredictionPage = () => {
                       <td
                         className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
                       >
-                        {result.prediction.prediction}
+                        {result.prediction.prediction === 1 ? "Có khả năng trending" : "Không trending"}
                       </td>
                     </tr>
                   )}
@@ -815,17 +815,17 @@ const PredictionPage = () => {
             </div>
           </div>
 
-          {/* Education Sample Prediction */}
+          {/* Trending Sample Prediction */}
           <div 
             className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-              selectedSample === 'education' 
+              selectedSample === 'trending' 
                 ? 'border-blue-500 bg-blue-50 shadow-md' 
                 : 'border-gray-200 bg-gray-50 hover:border-gray-300'
             }`}
-            onClick={() => loadSample('education')}
+            onClick={() => loadSample('trending')}
           >
             <h4 className="font-medium text-gray-900 mb-2">
-              Education Sample
+              Trending Sample
             </h4>
 
             <div className="space-y-2">
@@ -834,10 +834,10 @@ const PredictionPage = () => {
                 <div className="flex items-center">
                   <div
                     className={`w-3 h-3 rounded-full mr-2 ${
-                      samplePredictions.education.predictions.trending.prediction
+                      samplePredictions.trending.predictions.trending.prediction
                         .trending_probability > 0.7
                         ? "bg-green-500"
-                        : samplePredictions.education.predictions.trending.prediction
+                        : samplePredictions.trending.predictions.trending.prediction
                             .trending_probability > 0.4
                         ? "bg-yellow-500"
                         : "bg-red-500"
@@ -845,7 +845,7 @@ const PredictionPage = () => {
                   />
                   <span className="text-sm font-semibold">
                     {
-                      samplePredictions.education.predictions.trending.prediction.prediction === 1
+                      samplePredictions.trending.predictions.trending.prediction.prediction === 1
                         ? "Có khả năng trending"
                         : "Không trending"
                     }
@@ -857,7 +857,7 @@ const PredictionPage = () => {
                 <span className="text-sm text-gray-600">Lượt xem:</span>
                 <span className="text-sm font-semibold">
                   {formatNumber(
-                    samplePredictions.education.predictions.views.prediction.predicted_views
+                    samplePredictions.trending.predictions.views.prediction.predicted_views
                   )}
                 </span>
               </div>
@@ -865,7 +865,7 @@ const PredictionPage = () => {
               <div>
                 <span className="text-sm text-gray-600">Cluster:</span>
                 <span className="text-sm font-semibold">
-                  {samplePredictions.education.predictions.cluster.prediction.cluster}
+                  {samplePredictions.trending.predictions.cluster.prediction.cluster}
                 </span>
               </div>
 
@@ -873,7 +873,7 @@ const PredictionPage = () => {
                 <span className="text-sm text-gray-600">Loại nội dung:</span>
                 <span className="text-sm font-semibold">
                   {
-                    samplePredictions.education.predictions.cluster.prediction.cluster_type
+                    samplePredictions.trending.predictions.cluster.prediction.cluster_type
                   }
                 </span>
               </div>

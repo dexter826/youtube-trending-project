@@ -93,6 +93,21 @@ class YouTubeMLTrainer:
         evaluator = BinaryClassificationEvaluator(labelCol="is_trending")
         auc = evaluator.evaluate(predictions)
 
+        # Calculate additional metrics
+        from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+        multi_evaluator = MulticlassClassificationEvaluator(labelCol="is_trending", predictionCol="prediction")
+        accuracy = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "accuracy"})
+        precision = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "weightedPrecision"})
+        recall = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "weightedRecall"})
+        f1 = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "f1"})
+
+        print(f"Trending Model Metrics:")
+        print(f"AUC: {auc:.4f}")
+        print(f"Accuracy: {accuracy:.4f}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall: {recall:.4f}")
+        print(f"F1 Score: {f1:.4f}")
+
         model_path = f"{self.models_path}/trending_prediction"
         model.write().overwrite().save(model_path)
 
@@ -162,6 +177,17 @@ class YouTubeMLTrainer:
 
         train_data, test_data = data.randomSplit([0.8, 0.2], seed=42)
         model = pipeline.fit(train_data)
+
+        predictions = model.transform(test_data)
+        evaluator = RegressionEvaluator(labelCol="log_views", predictionCol="prediction")
+        rmse = evaluator.evaluate(predictions, {evaluator.metricName: "rmse"})
+        mae = evaluator.evaluate(predictions, {evaluator.metricName: "mae"})
+        r2 = evaluator.evaluate(predictions, {evaluator.metricName: "r2"})
+
+        print(f"Regression Model Metrics:")
+        print(f"RMSE: {rmse:.4f}")
+        print(f"MAE: {mae:.4f}")
+        print(f"R²: {r2:.4f}")
 
         model_path = f"{self.models_path}/regression"
         model.write().overwrite().save(model_path)

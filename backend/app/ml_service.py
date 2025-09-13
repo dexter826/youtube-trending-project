@@ -70,6 +70,12 @@ class MLService:
             prediction = int(result["prediction"])
             probability = float(result["probability"][1])
             
+            # Adjust threshold for imbalanced data
+            if probability > 0.1:  # Lower threshold for trending prediction
+                prediction = 1
+            else:
+                prediction = 0
+            
             return {
                 "trending_probability": probability,
                 "prediction": prediction,
