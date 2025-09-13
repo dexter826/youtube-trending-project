@@ -36,26 +36,39 @@ youtube-trending-project/
 ### Prerequisites
 - Python 3.8+, Node.js 16+, Java 8/11
 - MongoDB, Apache Spark 3.x, Hadoop/HDFS
+- Windows/Linux/Mac
 
-### Installation
+### Installation & Setup
 
 ```bash
 # Clone repository
 git clone https://github.com/dexter826/youtube-trending-project.git
 cd youtube-trending-project
 
-# Install dependencies
-pip install -r backend/requirements.txt
-pip install -r spark/requirements.txt
-cd frontend && npm install
-
-# Start services
-python run_pipeline.py
-cd backend && python -m app.main
-cd frontend && npm start
+# One-click setup (installs all dependencies)
+python setup.py
 ```
 
-## Access Points
+### Running the Project
+
+```bash
+# Start backend + frontend only
+python run.py app
+
+# Start full stack (infrastructure + pipeline + app)
+python run.py all
+
+# Start infrastructure only (HDFS + MongoDB)
+python run.py infrastructure
+
+# Run data pipeline only
+python run.py pipeline
+
+# Check service status
+python run.py status
+```
+
+### Access Points
 
 - **Frontend**: http://localhost:3000
 - **API**: http://localhost:8000
@@ -114,3 +127,36 @@ DB_NAME = "youtube_trending"
 ## Developer
 
 Trần Công Minh - MSSV: 2001222641
+
+## Migration Guide
+
+### From Old Scripts to New Simplified Setup
+
+**Old way (deprecated - removed):**
+```bash
+python run_pipeline.py     # ❌ Old pipeline script
+start-full.bat            # ❌ Old batch script  
+start-app.bat             # ❌ Old batch script
+```
+
+**New simplified way:**
+```bash
+# One-time setup
+python setup.py           # ✅ Install everything
+
+# Run as needed
+python run.py app         # ✅ Start backend + frontend
+python run.py all         # ✅ Start full stack
+```
+
+### File Structure Changes
+- ✅ **setup.py**: One-click environment setup
+- ✅ **run.py**: Flexible runner for different modes
+- ✅ **Removed**: 3 confusing files → 2 clear files
+
+### Benefits of New Approach
+- ✅ **Simpler**: Just 2 files instead of 3 confusing ones
+- ✅ **Clear separation**: Setup vs Run
+- ✅ **Environment-aware**: Uses .env file for configuration
+- ✅ **Better error handling**: Prerequisites checking, helpful messages
+- ✅ **Flexible**: Run only what you need

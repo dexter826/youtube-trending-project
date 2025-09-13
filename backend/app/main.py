@@ -9,10 +9,16 @@ from datetime import datetime, date
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 import os
+import sys
+from pathlib import Path
 from bson import ObjectId
 import json
 
-from .ml_service import get_ml_service, initialize_ml_service
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from backend.app.ml_service import get_ml_service, initialize_ml_service
 
 # Load category mappings
 CATEGORY_MAPPINGS = {}
