@@ -149,7 +149,11 @@ class MLService:
             import re
             has_caps = 1.0 if re.search(r'[A-Z]{3,}', title) else 0.0
             
+            import math
+            log_views = math.log1p(views)
+            
             features = {
+                "log_views": float(log_views),
                 "like_ratio": likes / views,
                 "dislike_ratio": dislikes / views,
                 "comment_ratio": comment_count / views,
@@ -161,6 +165,7 @@ class MLService:
             }
             
             schema = StructType([
+                StructField("log_views", DoubleType(), True),
                 StructField("like_ratio", DoubleType(), True),
                 StructField("dislike_ratio", DoubleType(), True),
                 StructField("comment_ratio", DoubleType(), True),

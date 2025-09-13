@@ -63,8 +63,11 @@ class YouTubeMLTrainer:
 
     def train_trending_prediction_model(self, df):
         """Train trending prediction model"""
+        # Add log transformation for views
+        df = df.withColumn("log_views", log(col("views") + 1))
+        
         feature_cols = [
-            "like_ratio", "dislike_ratio", "comment_ratio", "engagement_score",
+            "log_views", "like_ratio", "dislike_ratio", "comment_ratio", "engagement_score",
             "title_length", "has_caps", "tag_count", "category_id"
         ]
 

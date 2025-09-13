@@ -40,6 +40,123 @@ const PredictionPage = () => {
     views: null,
     cluster: null,
   });
+  const [predictionLoading, setPredictionLoading] = useState({
+    trending: false,
+    views: false,
+    cluster: false,
+    all: false,
+  });
+  const [samplePredictions, setSamplePredictions] = useState({
+    tech: {
+      data: {
+        title: "iPhone 15 Pro Max Review - Is It Worth The Hype?",
+        views: 50000,
+        likes: 2500,
+        dislikes: 150,
+        comment_count: 800,
+        category_id: 28, // Science & Technology
+        tags: "iPhone|iPhone 15|review|tech|Apple|smartphone",
+      },
+      predictions: {
+        trending: {
+          prediction: {
+            trending_probability: 0.631,
+            prediction: 1,
+            confidence: "medium",
+            method: "spark_mllib",
+          },
+        },
+        views: {
+          prediction: {
+            predicted_views: 51633,
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+        cluster: {
+          prediction: {
+            cluster: 0,
+            cluster_type: "Music & Entertainment",
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+      },
+    },
+    entertainment: {
+      data: {
+        title: "Top 10 Funniest Cat Videos of 2024!",
+        views: 100000,
+        likes: 8000,
+        dislikes: 200,
+        comment_count: 1200,
+        category_id: 24, // Entertainment
+        tags: "cats|funny|videos|pets|comedy|animals",
+      },
+      predictions: {
+        trending: {
+          prediction: {
+            trending_probability: 0.726,
+            prediction: 1,
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+        views: {
+          prediction: {
+            predicted_views: 100601,
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+        cluster: {
+          prediction: {
+            cluster: 0,
+            cluster_type: "Music & Entertainment",
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+      },
+    },
+    education: {
+      data: {
+        title: "How Machine Learning Works - A Complete Guide",
+        views: 25000,
+        likes: 1200,
+        dislikes: 50,
+        comment_count: 300,
+        category_id: 27, // Education
+        tags: "machine learning|AI|tutorial|education|data science|programming",
+      },
+      predictions: {
+        trending: {
+          prediction: {
+            trending_probability: 0.069,
+            prediction: 0,
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+        views: {
+          prediction: {
+            predicted_views: 25895,
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+        cluster: {
+          prediction: {
+            cluster: 2,
+            cluster_type: "News & Viral",
+            confidence: "high",
+            method: "spark_mllib",
+          },
+        },
+      },
+    },
+  });
+  const [selectedSample, setSelectedSample] = useState(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -73,6 +190,10 @@ const PredictionPage = () => {
   };
 
   const handlePredict = async (type) => {
+    setPredictionLoading((prev) => ({ ...prev, [type]: true }));
+    // Clear previous predictions to avoid showing stale data
+    setPredictions((prev) => ({ ...prev, [type]: null }));
+    setSelectedSample(null); // Clear selected sample when doing real prediction
     try {
       let result;
       switch (type) {
@@ -93,10 +214,16 @@ const PredictionPage = () => {
       }
     } catch (err) {
       // Error handled by ApiContext
+    } finally {
+      setPredictionLoading((prev) => ({ ...prev, [type]: false }));
     }
   };
 
   const handlePredictAll = async () => {
+    setPredictionLoading((prev) => ({ ...prev, all: true, trending: true, views: true, cluster: true }));
+    // Clear all predictions
+    setPredictions({ trending: null, views: null, cluster: null });
+    setSelectedSample(null);
     try {
       const [trendingResult, viewsResult, clusterResult] = await Promise.all([
         predictTrending(videoData),
@@ -111,6 +238,22 @@ const PredictionPage = () => {
       });
     } catch (err) {
       // Error handled by ApiContext
+    } finally {
+      setPredictionLoading((prev) => ({ ...prev, all: false, trending: false, views: false, cluster: false }));
+    }
+  };
+
+  const loadSample = (sampleKey) => {
+    const sample = samplePredictions[sampleKey];
+    if (sample) {
+      setVideoData(sample.data);
+      setSelectedSample(sampleKey);
+      // Reset predictions to show sample predictions
+      setPredictions({
+        trending: sample.predictions.trending,
+        views: sample.predictions.views,
+        cluster: sample.predictions.cluster,
+      });
     }
   };
 
@@ -123,14 +266,25 @@ const PredictionPage = () => {
     return num?.toLocaleString() || "0";
   };
 
-  const PredictionCard = ({ title, icon: Icon, result, color = "blue" }) => (
+  const isFormValid = () => {
+    return (
+      videoData.title.trim() !== "" &&
+      videoData.category_id !== 0 &&
+      videoData.views >= 0 &&
+      videoData.likes >= 0 &&
+      videoData.dislikes >= 0 &&
+      videoData.comment_count >= 0
+    );
+  };
+
+  const PredictionCard = ({ title, icon: Icon, result, color = "blue", type }) => (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Icon className={`w-5 h-5 text-${color}-600`} />
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
-        {result?.prediction && (
+        {result?.prediction && !predictionLoading[type] && (
           <div className="flex items-center space-x-1">
             <CheckCircle className="w-4 h-4 text-green-500" />
             <span className="text-xs text-green-600">Hoàn thành</span>
@@ -138,136 +292,140 @@ const PredictionPage = () => {
         )}
       </div>
 
-      {result ? (
-        <div className="space-y-3">
-          {/* Hiển thị kết quả dưới dạng bảng */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full table-auto border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">
-                    Thuộc tính
-                  </th>
-                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">
-                    Giá trị
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Sử dụng result.prediction thay vì result trực tiếp */}
-                {result.prediction?.trending_probability !== undefined && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Xác suất Trending
-                    </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm font-bold ${
-                        result.prediction.trending_probability > 0.7
-                          ? "text-green-600"
-                          : result.prediction.trending_probability > 0.4
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {(result.prediction.trending_probability * 100).toFixed(
-                        1
-                      )}
-                      %
-                    </td>
+      <div className="min-h-[200px] flex items-center justify-center">
+        {predictionLoading[type] ? (
+          <LoadingSpinner message="Đang thực hiện dự đoán..." />
+        ) : result ? (
+          <div className="w-full space-y-3">
+            {/* Hiển thị kết quả dưới dạng bảng */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">
+                      Thuộc tính
+                    </th>
+                    <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">
+                      Giá trị
+                    </th>
                   </tr>
-                )}
-                {result.prediction?.prediction !== undefined && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Dự đoán
-                    </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
-                    >
-                      {result.prediction.prediction}
-                    </td>
-                  </tr>
-                )}
-                {result.prediction?.predicted_views !== undefined && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Dự đoán lượt xem
-                    </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
-                    >
-                      {formatNumber(result.prediction.predicted_views)}
-                    </td>
-                  </tr>
-                )}
-                {result.prediction?.cluster !== undefined && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Cluster
-                    </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
-                    >
-                      {result.prediction.cluster}
-                    </td>
-                  </tr>
-                )}
-                {result.prediction?.cluster_type && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Loại nội dung
-                    </td>
-                    <td className={`border border-gray-300 px-4 py-2 text-sm`}>
-                      <span
-                        className={`px-2 py-1 bg-${color}-100 text-${color}-700 text-sm rounded-full`}
+                </thead>
+                <tbody>
+                  {/* Sử dụng result.prediction thay vì result trực tiếp */}
+                  {result.prediction?.trending_probability !== undefined && (
+                    <tr>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                        Xác suất Trending
+                      </td>
+                      <td
+                        className={`border border-gray-300 px-4 py-2 text-sm font-bold ${
+                          result.prediction.trending_probability > 0.7
+                            ? "text-green-600"
+                            : result.prediction.trending_probability > 0.4
+                            ? "text-yellow-600"
+                            : "text-red-600"
+                        }`}
                       >
-                        {result.prediction.cluster_type}
-                      </span>
-                    </td>
-                  </tr>
-                )}
-                {result.prediction?.confidence && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Độ tin cậy
-                    </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm font-medium ${
-                        result.prediction.confidence === "high"
-                          ? "text-green-600"
+                        {(result.prediction.trending_probability * 100).toFixed(
+                          1
+                        )}
+                        %
+                      </td>
+                    </tr>
+                  )}
+                  {result.prediction?.prediction !== undefined && (
+                    <tr>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                        Dự đoán
+                      </td>
+                      <td
+                        className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
+                      >
+                        {result.prediction.prediction}
+                      </td>
+                    </tr>
+                  )}
+                  {result.prediction?.predicted_views !== undefined && (
+                    <tr>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                        Dự đoán lượt xem
+                      </td>
+                      <td
+                        className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
+                      >
+                        {formatNumber(result.prediction.predicted_views)}
+                      </td>
+                    </tr>
+                  )}
+                  {result.prediction?.cluster !== undefined && (
+                    <tr>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                        Cluster
+                      </td>
+                      <td
+                        className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
+                      >
+                        {result.prediction.cluster}
+                      </td>
+                    </tr>
+                  )}
+                  {result.prediction?.cluster_type && (
+                    <tr>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                        Loại nội dung
+                      </td>
+                      <td className={`border border-gray-300 px-4 py-2 text-sm`}>
+                        <span
+                          className={`px-2 py-1 bg-${color}-100 text-${color}-700 text-sm rounded-full`}
+                        >
+                          {result.prediction.cluster_type}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                  {result.prediction?.confidence && (
+                    <tr>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                        Độ tin cậy
+                      </td>
+                      <td
+                        className={`border border-gray-300 px-4 py-2 text-sm font-medium ${
+                          result.prediction.confidence === "high"
+                            ? "text-green-600"
+                            : result.prediction.confidence === "medium"
+                            ? "text-yellow-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {result.prediction.confidence === "high"
+                          ? "Cao"
                           : result.prediction.confidence === "medium"
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {result.prediction.confidence === "high"
-                        ? "Cao"
-                        : result.prediction.confidence === "medium"
-                        ? "Trung bình"
-                        : "Thấp"}
-                    </td>
-                  </tr>
-                )}
-                {result.prediction?.method && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Phương pháp
-                    </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-500">
-                      {result.prediction.method}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                          ? "Trung bình"
+                          : "Thấp"}
+                      </td>
+                    </tr>
+                  )}
+                  {result.prediction?.method && (
+                    <tr>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                        Phương pháp
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-sm text-gray-500">
+                        {result.prediction.method}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="text-center py-8 text-gray-500">
-          <Icon className={`w-12 h-12 text-gray-300 mx-auto mb-2`} />
-          <p>Chưa có dự đoán</p>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Icon className={`w-12 h-12 text-gray-300 mx-auto mb-2`} />
+            <p>Chưa có dự đoán</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -448,7 +606,7 @@ const PredictionPage = () => {
             <div className="space-y-3">
               <button
                 onClick={handlePredictAll}
-                disabled={loading || !mlHealth?.is_trained}
+                disabled={loading || !mlHealth?.is_trained || !isFormValid()}
                 className="btn-primary w-full flex items-center justify-center space-x-2"
               >
                 <Zap className="w-4 h-4" />
@@ -458,7 +616,7 @@ const PredictionPage = () => {
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => handlePredict("trending")}
-                  disabled={loading || !mlHealth?.is_trained}
+                  disabled={loading || !mlHealth?.is_trained || !isFormValid()}
                   className="btn-secondary text-xs flex items-center justify-center space-x-1"
                 >
                   <TrendingUp className="w-3 h-3" />
@@ -467,7 +625,7 @@ const PredictionPage = () => {
 
                 <button
                   onClick={() => handlePredict("views")}
-                  disabled={loading || !mlHealth?.is_trained}
+                  disabled={loading || !mlHealth?.is_trained || !isFormValid()}
                   className="btn-secondary text-xs flex items-center justify-center space-x-1"
                 >
                   <Eye className="w-3 h-3" />
@@ -476,7 +634,7 @@ const PredictionPage = () => {
 
                 <button
                   onClick={() => handlePredict("cluster")}
-                  disabled={loading || !mlHealth?.is_trained}
+                  disabled={loading || !mlHealth?.is_trained || !isFormValid()}
                   className="btn-secondary text-xs flex items-center justify-center space-x-1"
                 >
                   <Target className="w-3 h-3" />
@@ -489,13 +647,12 @@ const PredictionPage = () => {
 
         {/* Predictions Results */}
         <div className="space-y-6">
-          {loading && <LoadingSpinner message="Đang thực hiện dự đoán..." />}
-
           <PredictionCard
             title="Dự đoán Trending"
             icon={TrendingUp}
             result={predictions.trending}
             color="green"
+            type="trending"
           />
 
           <PredictionCard
@@ -503,6 +660,7 @@ const PredictionPage = () => {
             icon={Eye}
             result={predictions.views}
             color="blue"
+            type="views"
           />
 
           <PredictionCard
@@ -510,71 +668,217 @@ const PredictionPage = () => {
             icon={Target}
             result={predictions.cluster}
             color="purple"
+            type="cluster"
           />
         </div>
       </div>
 
-      {/* Sample Data */}
+      {/* Sample Predictions */}
       <div className="card">
         <div className="flex items-center space-x-2 mb-4">
           <BarChart3 className="w-5 h-5 text-gray-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Dữ liệu Mẫu</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Dự đoán Mẫu</h3>
+          <span className="text-sm text-gray-500">(Click để chọn và kiểm tra)</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button
-            onClick={() =>
-              setVideoData({
-                title: "Amazing Tech Review 2024 - Must Watch!",
-                views: 50000,
-                likes: 2500,
-                dislikes: 100,
-                comment_count: 500,
-                category_id: 28,
-                tags: "tech|review|2024|gadgets|technology",
-              })
-            }
-            className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
+          {/* Tech Review Sample Prediction */}
+          <div 
+            className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+              selectedSample === 'tech' 
+                ? 'border-blue-500 bg-blue-50 shadow-md' 
+                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+            }`}
+            onClick={() => loadSample('tech')}
           >
-            <h4 className="font-medium text-gray-900">Tech Review</h4>
-            <p className="text-sm text-gray-600">Video công nghệ phổ biến</p>
-          </button>
+            <h4 className="font-medium text-gray-900 mb-2">
+              Tech Review Sample
+            </h4>
 
-          <button
-            onClick={() =>
-              setVideoData({
-                title: "Funny Cat Compilation - Hilarious Moments",
-                views: 100000,
-                likes: 8000,
-                dislikes: 200,
-                comment_count: 1200,
-                category_id: 23,
-                tags: "funny|cats|pets|compilation|animals",
-              })
-            }
-            className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
-          >
-            <h4 className="font-medium text-gray-900">Entertainment</h4>
-            <p className="text-sm text-gray-600">Video giải trí về thú cưng</p>
-          </button>
+            <div className="space-y-2">
+              <div>
+                <span className="text-sm text-gray-600">Trending:</span>
+                <div className="flex items-center">
+                  <div
+                    className={`w-3 h-3 rounded-full mr-2 ${
+                      samplePredictions.tech.predictions.trending.prediction
+                        .trending_probability > 0.7
+                        ? "bg-green-500"
+                        : samplePredictions.tech.predictions.trending.prediction
+                            .trending_probability > 0.4
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <span className="text-sm font-semibold">
+                    {
+                      samplePredictions.tech.predictions.trending.prediction.prediction === 1
+                        ? "Có khả năng trending"
+                        : "Không trending"
+                    }
+                  </span>
+                </div>
+              </div>
 
-          <button
-            onClick={() =>
-              setVideoData({
-                title: "How to Learn Programming in 2024",
-                views: 25000,
-                likes: 1800,
-                dislikes: 50,
-                comment_count: 300,
-                category_id: 27,
-                tags: "programming|tutorial|education|coding|learn",
-              })
-            }
-            className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
+              <div>
+                <span className="text-sm text-gray-600">Lượt xem:</span>
+                <span className="text-sm font-semibold">
+                  {formatNumber(
+                    samplePredictions.tech.predictions.views.prediction.predicted_views
+                  )}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Cluster:</span>
+                <span className="text-sm font-semibold">
+                  {samplePredictions.tech.predictions.cluster.prediction.cluster}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Loại nội dung:</span>
+                <span className="text-sm font-semibold">
+                  {
+                    samplePredictions.tech.predictions.cluster.prediction.cluster_type
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Entertainment Sample Prediction */}
+          <div 
+            className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+              selectedSample === 'entertainment' 
+                ? 'border-blue-500 bg-blue-50 shadow-md' 
+                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+            }`}
+            onClick={() => loadSample('entertainment')}
           >
-            <h4 className="font-medium text-gray-900">Education</h4>
-            <p className="text-sm text-gray-600">Video giáo dục lập trình</p>
-          </button>
+            <h4 className="font-medium text-gray-900 mb-2">
+              Entertainment Sample
+            </h4>
+
+            <div className="space-y-2">
+              <div>
+                <span className="text-sm text-gray-600">Trending:</span>
+                <div className="flex items-center">
+                  <div
+                    className={`w-3 h-3 rounded-full mr-2 ${
+                      samplePredictions.entertainment.predictions.trending.prediction
+                        .trending_probability > 0.7
+                        ? "bg-green-500"
+                        : samplePredictions.entertainment.predictions.trending.prediction
+                            .trending_probability > 0.4
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <span className="text-sm font-semibold">
+                    {
+                      samplePredictions.entertainment.predictions.trending.prediction
+                        .prediction === 1
+                        ? "Có khả năng trending"
+                        : "Không trending"
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Lượt xem:</span>
+                <span className="text-sm font-semibold">
+                  {formatNumber(
+                    samplePredictions.entertainment.predictions.views.prediction
+                      .predicted_views
+                  )}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Cluster:</span>
+                <span className="text-sm font-semibold">
+                  {samplePredictions.entertainment.predictions.cluster.prediction.cluster}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Loại nội dung:</span>
+                <span className="text-sm font-semibold">
+                  {
+                    samplePredictions.entertainment.predictions.cluster.prediction
+                      .cluster_type
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Education Sample Prediction */}
+          <div 
+            className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+              selectedSample === 'education' 
+                ? 'border-blue-500 bg-blue-50 shadow-md' 
+                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+            }`}
+            onClick={() => loadSample('education')}
+          >
+            <h4 className="font-medium text-gray-900 mb-2">
+              Education Sample
+            </h4>
+
+            <div className="space-y-2">
+              <div>
+                <span className="text-sm text-gray-600">Trending:</span>
+                <div className="flex items-center">
+                  <div
+                    className={`w-3 h-3 rounded-full mr-2 ${
+                      samplePredictions.education.predictions.trending.prediction
+                        .trending_probability > 0.7
+                        ? "bg-green-500"
+                        : samplePredictions.education.predictions.trending.prediction
+                            .trending_probability > 0.4
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <span className="text-sm font-semibold">
+                    {
+                      samplePredictions.education.predictions.trending.prediction.prediction === 1
+                        ? "Có khả năng trending"
+                        : "Không trending"
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Lượt xem:</span>
+                <span className="text-sm font-semibold">
+                  {formatNumber(
+                    samplePredictions.education.predictions.views.prediction.predicted_views
+                  )}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Cluster:</span>
+                <span className="text-sm font-semibold">
+                  {samplePredictions.education.predictions.cluster.prediction.cluster}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-sm text-gray-600">Loại nội dung:</span>
+                <span className="text-sm font-semibold">
+                  {
+                    samplePredictions.education.predictions.cluster.prediction.cluster_type
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
