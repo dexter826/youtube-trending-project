@@ -1,5 +1,5 @@
 """
-Centralized MongoDB Connection Management
+MongoDB Connection Manager
 """
 
 import os
@@ -7,7 +7,7 @@ from pymongo import MongoClient
 
 
 class DatabaseManager:
-    """Singleton MongoDB connection manager"""
+    """MongoDB connection manager singleton"""
 
     _instance = None
     _client = None
@@ -19,7 +19,7 @@ class DatabaseManager:
         return cls._instance
 
     def get_database(self, uri=None, db_name=None):
-        """Get or create MongoDB database connection"""
+        """Establish MongoDB database connection"""
         if uri is None:
             uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 
@@ -30,20 +30,20 @@ class DatabaseManager:
             self._client = MongoClient(uri)
             self._db = self._client[db_name]
 
-            # Test connection
+            # Verify connection
             self._client.admin.command('ping')
 
         return self._db
 
     def close_connection(self):
-        """Close MongoDB connection"""
+        """Terminate MongoDB connection"""
         if self._client:
             self._client.close()
             self._client = None
             self._db = None
 
     def get_collection(self, name):
-        """Get collection from database"""
+        """Retrieve collection from database"""
         if self._db is None:
             raise RuntimeError("Database not initialized")
         return self._db[name]

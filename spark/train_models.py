@@ -109,13 +109,6 @@ class YouTubeMLTrainer:
         recall = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "weightedRecall"})
         f1 = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "f1"})
 
-        print(f"Trending Model Metrics:")
-        print(f"AUC: {auc:.4f}")
-        print(f"Accuracy: {accuracy:.4f}")
-        print(f"Precision: {precision:.4f}")
-        print(f"Recall: {recall:.4f}")
-        print(f"F1 Score: {f1:.4f}")
-
         # Save trending metrics
         trending_metrics = {
             "auc": float(auc),
@@ -174,7 +167,6 @@ class YouTubeMLTrainer:
         predictions = model.transform(data)
         evaluator = ClusteringEvaluator(predictionCol="cluster", featuresCol="scaledFeatures")
         silhouette = evaluator.evaluate(predictions)
-        print(f"Silhouette score: {silhouette:.4f}")
 
         # Save clustering metrics
         clustering_metrics = {
@@ -227,11 +219,6 @@ class YouTubeMLTrainer:
         mae = evaluator.evaluate(predictions, {evaluator.metricName: "mae"})
         r2 = evaluator.evaluate(predictions, {evaluator.metricName: "r2"})
 
-        print(f"Regression Model Metrics:")
-        print(f"RMSE: {rmse:.4f}")
-        print(f"MAE: {mae:.4f}")
-        print(f"R²: {r2:.4f}")
-
         # Save regression metrics
         regression_metrics = {
             "rmse": float(rmse),
@@ -274,12 +261,10 @@ class YouTubeMLTrainer:
             local_metrics_path = "model_metrics.json"
             with open(local_metrics_path, 'w') as f:
                 json.dump(all_metrics, f, indent=2)
-            print(f"Model metrics saved to {local_metrics_path}")
 
             return all([trending_model, clustering_model, regression_model])
 
         except Exception as e:
-            print(f"Training failed: {e}")
             return False
         finally:
             self.spark.stop()

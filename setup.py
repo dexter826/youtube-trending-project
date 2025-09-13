@@ -176,14 +176,6 @@ MONGO_DATA_PATH=C:\\data\\db
 
         return True
 
-    def run_initial_pipeline(self):
-        """Run initial data pipeline setup"""
-        print("🔄 Running initial pipeline setup...")
-
-        # This is optional - user can run this separately with run.py
-        print("ℹ️  Skipping initial pipeline. Use 'python run.py pipeline' to run it later.")
-        return True
-
     def show_completion_message(self):
         """Show setup completion message"""
         print("\n🎉 Setup Complete!")
@@ -198,6 +190,7 @@ MONGO_DATA_PATH=C:\\data\\db
 
 
 def main():
+    """Main entry point"""
     print("🚀 YouTube Trending Project Setup")
     print("=" * 40)
 

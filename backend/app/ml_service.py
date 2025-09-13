@@ -70,12 +70,9 @@ class MLService:
             if os.path.exists(metrics_file):
                 with open(metrics_file, 'r') as f:
                     self.metrics = json.load(f)
-                print(f"Loaded metrics from {metrics_file}")
             else:
-                print("Metrics file not found, using default values")
                 self.metrics = {}
         except Exception as e:
-            print(f"Failed to load metrics: {e}")
             self.metrics = {}
 
     def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -120,7 +117,6 @@ class MLService:
             
             result = predictions.select("prediction").collect()[0]
             predicted_log_views = float(result["prediction"])
-            print(f"DEBUG: Raw prediction (log_views): {predicted_log_views}")
             predicted_views = int(max(0, math.exp(predicted_log_views) - 1))
             
             return {
@@ -378,22 +374,14 @@ class MLService:
         import json
         import os
         try:
-            # Fix path to point to project root
             current_dir = os.path.dirname(__file__)
             cluster_file = os.path.join(current_dir, "../../spark/cluster_names.json")
-            print(f"Current dir: {current_dir}")
-            print(f"Looking for cluster file at: {cluster_file}")
-            print(f"Absolute path: {os.path.abspath(cluster_file)}")
             if os.path.exists(cluster_file):
                 with open(cluster_file, 'r', encoding='utf-8') as f:
                     self.cluster_names = json.load(f)
-                print(f"Loaded dynamic cluster names from {cluster_file}")
-                print(f"Cluster names: {self.cluster_names}")
             else:
-                print("Cluster names file not found, using fallback names")
                 self.cluster_names = self._get_fallback_cluster_names()
         except Exception as e:
-            print(f"Failed to load cluster names: {e}, using fallback")
             self.cluster_names = self._get_fallback_cluster_names()
 
     def _get_fallback_cluster_names(self):

@@ -42,7 +42,7 @@ def load_category_mappings():
                         mapping[cat_id] = title
                     CATEGORY_MAPPINGS[country] = mapping
             except Exception as e:
-                pass
+                pass  # Skip invalid files
 
 # Load mappings on startup
 load_category_mappings()
@@ -262,9 +262,7 @@ async def get_wordcloud_data(country: Optional[str] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get wordcloud data: {str(e)}")
 
-# ============================================================================
-# MACHINE LEARNING ENDPOINTS
-# ============================================================================
+# Machine Learning Endpoints
 
 @app.get("/ml/health")
 async def ml_health():

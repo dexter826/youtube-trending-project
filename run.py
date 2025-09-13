@@ -70,7 +70,6 @@ class ProjectRunner:
             return False
 
         # Wait for services to start
-        print("⏳ Waiting for services to initialize...")
         time.sleep(10)
 
         return True
@@ -159,7 +158,6 @@ class ProjectRunner:
             )
             
             # Wait for backend to be ready
-            print("⏳ Waiting for backend to be ready...")
             if not self._wait_for_backend_ready(api_port, timeout=30):
                 print("❌ Backend failed to become ready within timeout")
                 return False
@@ -202,7 +200,6 @@ class ProjectRunner:
     def _wait_for_backend_ready(self, port, timeout=30):
         """Wait for backend to be ready by checking health endpoint"""
         import requests
-        import time
         
         start_time = time.time()
         health_url = f"http://localhost:{port}/docs"  # Use /docs as health check
@@ -215,10 +212,8 @@ class ProjectRunner:
             except requests.exceptions.RequestException:
                 pass
             
-            print(".", end="", flush=True)
             time.sleep(1)
         
-        print()  # New line after dots
         return False
 
     def show_status(self):
@@ -261,6 +256,7 @@ class ProjectRunner:
 
 
 def main():
+    """Main entry point"""
     parser = argparse.ArgumentParser(
         description="YouTube Trending Project Runner",
         formatter_class=argparse.RawDescriptionHelpFormatter,
