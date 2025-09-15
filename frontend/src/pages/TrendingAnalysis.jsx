@@ -54,7 +54,12 @@ const TrendingAnalysis = () => {
 
       setVideos(videosData.videos || []);
       setCountries(countriesData.countries || []);
-      setCategories(categoriesData.categories || []);
+      setCategories(
+        Object.entries(categoriesData.categories || {}).map(([id, name]) => ({
+          id: parseInt(id),
+          name,
+        }))
+      );
     } catch (err) {
       // Error handled by ApiContext
     }
