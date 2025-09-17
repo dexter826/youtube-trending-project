@@ -62,8 +62,9 @@ export const ApiProvider = ({ children }) => {
     const params = new URLSearchParams();
     if (filters.country) params.append('country', filters.country);
     if (filters.category) params.append('category', filters.category);
-    if (filters.limit) params.append('limit', filters.limit);
-    
+    if (filters.date) params.append('date', filters.date);
+    if (filters.sortBy) params.append('sort_by', filters.sortBy);
+    if (filters.order) params.append('order', filters.order);
     return apiCall('GET', `/trending?${params.toString()}`);
   }, [apiCall]);
 
@@ -76,8 +77,9 @@ export const ApiProvider = ({ children }) => {
     return apiCall('GET', '/countries');
   }, [apiCall]);
 
-  const fetchCategories = useCallback(async () => {
-    return apiCall('GET', '/categories');
+  const fetchCategories = useCallback(async (country = null) => {
+    const params = country ? `?country=${country}` : '';
+    return apiCall('GET', `/categories${params}`);
   }, [apiCall]);
 
   const fetchWordcloudData = useCallback(async (country = null) => {

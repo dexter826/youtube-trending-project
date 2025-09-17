@@ -13,7 +13,6 @@ import {
 } from "recharts";
 import {
   Filter,
-  Download,
   Eye,
   ThumbsUp,
   MessageCircle,
@@ -31,6 +30,7 @@ const TrendingAnalysis = () => {
     fetchTrendingVideos,
     fetchCountries,
     fetchCategories,
+    fetchDates,
     loading,
     error,
   } = useApi();
@@ -38,18 +38,24 @@ const TrendingAnalysis = () => {
   const [videos, setVideos] = useState([]);
   const [countries, setCountries] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [dates, setDates] = useState([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const [filters, setFilters] = useState({
     country: "",
     category: "",
-    limit: 50,
+    date: "",
+    sortBy: "views",
+    order: "desc",
   });
 
   const loadData = useCallback(async () => {
     try {
-      const [videosData, countriesData, categoriesData] = await Promise.all([
+      const [videosData, countriesData, categoriesData, datesData] = await Promise.all([
         fetchTrendingVideos(filters),
         fetchCountries(),
-        fetchCategories(),
+        fetchCategories(filters.country || null),
+        fetchDates(filters.country || null),
       ]);
 
       setVideos(videosData.videos || []);
@@ -60,17 +66,35 @@ const TrendingAnalysis = () => {
           name,
         }))
       );
+      setDates(datesData.dates || []);
     } catch (err) {
       // Error handled by ApiContext
     }
-  }, [filters, fetchTrendingVideos, fetchCountries, fetchCategories]);
+  }, [filters, fetchTrendingVideos, fetchCountries, fetchCategories, fetchDates]);
 
+  // Debounce load when filters change
   useEffect(() => {
-    loadData();
+    const t = setTimeout(() => {
+      loadData();
+    }, 300);
+    return () => clearTimeout(t);
   }, [loadData]);
 
+  // Auto-select latest date when dates loaded and no date selected
+  useEffect(() => {
+    if (!filters.date && dates && dates.length > 0) {
+      setFilters((prev) => ({ ...prev, date: dates[0] }));
+    }
+  }, [dates, filters.date]);
+
   const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+    if (key === 'country') {
+      // Reset dependent filters so new lists (dates/categories) are fetched and re-selected
+      setFilters((prev) => ({ ...prev, country: value, category: '', date: '' }));
+    } else {
+      setFilters((prev) => ({ ...prev, [key]: value }));
+    }
   };
 
   // Prepare chart data
@@ -78,6 +102,7 @@ const TrendingAnalysis = () => {
     .map((cat) => {
       const count = videos.filter((v) => v.category_id === cat.id).length;
       return {
+        id: cat.id,
         name: cat.name,
         count,
         percentage:
@@ -100,12 +125,23 @@ const TrendingAnalysis = () => {
     return null;
   };
 
-  const viewsData = videos.slice(0, 10).map((video) => ({
-    title: video.title?.substring(0, 30) + "..." || "Untitled",
-    views: video.views || 0,
-    likes: video.likes || 0,
-    comments: video.comment_count || 0,
-  }));
+  const viewsData = videos.slice(0, 10).map((video) => {
+    const title = video.title || "Untitled";
+    const shortTitle = title.length > 40 ? title.substring(0, 37) + "..." : title;
+    const views = video.views || 0;
+    const likes = video.likes || 0;
+    const comments = video.comment_count || 0;
+    const engagement = views > 0 ? ((likes + comments) / views) : 0;
+    return {
+      title: shortTitle,
+      fullTitle: title,
+      views,
+      likes,
+      comments,
+      engagement,
+      channel: video.channel_title || "Unknown Channel",
+    };
+  });
 
   const COLORS = [
     "#3B82F6",
@@ -127,6 +163,18 @@ const TrendingAnalysis = () => {
     return num?.toLocaleString() || "0";
   };
 
+  const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
+
+  const calcEngagement = (v) => {
+    const views = v.views || 0;
+    const likes = v.likes || 0;
+    const comments = v.comment_count || 0;
+    return views > 0 ? (likes + comments) / views : 0;
+  };
+
+  const pagedVideos = videos.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(videos.length / pageSize));
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -139,6 +187,13 @@ const TrendingAnalysis = () => {
             Khám phá xu hướng và thống kê chi tiết về video trending
           </p>
         </div>
+        {/* Summary badges */}
+        <div className="mt-4 flex flex-wrap gap-3 text-sm">
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Ngày: <span className="font-medium">{filters.date || (dates[0] || 'Mới nhất')}</span></span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Sắp xếp: <span className="font-medium">{filters.sortBy}</span></span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Thứ tự: <span className="font-medium">{filters.order}</span></span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Kết quả: <span className="font-medium">{videos.length}</span></span>
+        </div>
       </div>
 
       {/* Filters */}
@@ -148,7 +203,7 @@ const TrendingAnalysis = () => {
           <h3 className="text-lg font-semibold text-gray-900">Bộ lọc</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <Globe className="w-4 h-4 inline mr-1" />
@@ -190,31 +245,48 @@ const TrendingAnalysis = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <Calendar className="w-4 h-4 inline mr-1" />
-              Số lượng
+              Ngày
             </label>
             <select
-              value={filters.limit}
-              onChange={(e) =>
-                handleFilterChange("limit", parseInt(e.target.value))
-              }
+              value={filters.date}
+              onChange={(e) => handleFilterChange("date", e.target.value)}
               className="input-field"
             >
-              <option value={25}>25 video</option>
-              <option value={50}>50 video</option>
-              <option value={100}>100 video</option>
-              <option value={200}>200 video</option>
+              <option value="">Mới nhất</option>
+              {dates.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
             </select>
           </div>
 
-          <div className="flex items-end">
-            <button
-              onClick={loadData}
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center space-x-2"
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sắp xếp theo
+            </label>
+            <select
+              value={filters.sortBy}
+              onChange={(e) => handleFilterChange("sortBy", e.target.value)}
+              className="input-field"
             >
-              <Download className="w-4 h-4" />
-              <span>Tải dữ liệu</span>
-            </button>
+              <option value="views">Lượt xem</option>
+              <option value="likes">Lượt thích</option>
+              <option value="comments">Bình luận</option>
+              <option value="engagement">Tương tác</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Thứ tự
+            </label>
+            <select
+              value={filters.order}
+              onChange={(e) => handleFilterChange("order", e.target.value)}
+              className="input-field"
+            >
+              <option value="desc">Giảm dần</option>
+              <option value="asc">Tăng dần</option>
+            </select>
           </div>
         </div>
       </div>
@@ -228,9 +300,16 @@ const TrendingAnalysis = () => {
         <div className="stat-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Tổng Video</p>
+              <p className="text-sm font-medium text-gray-600">Tỷ lệ tương tác TB</p>
               <p className="text-2xl font-bold text-blue-600">
-                {videos.length}
+                {formatPercent(
+                  (() => {
+                    const valid = videos.filter(v => (v.views || 0) > 0);
+                    if (valid.length === 0) return 0;
+                    const sum = valid.reduce((acc, v) => acc + ((v.likes || 0) + (v.comment_count || 0)) / (v.views || 1), 0);
+                    return sum / valid.length;
+                  })()
+                )}
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-blue-600" />
@@ -286,34 +365,55 @@ const TrendingAnalysis = () => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Category Distribution */}
+        {/* Category Distribution (Donut + interactive legend) */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Phân bố theo Danh mục
           </h3>
           {categoryData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percentage }) => `${name}: ${percentage}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ percentage }) => `${percentage}%`}
+                    innerRadius={55}
+                    outerRadius={90}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {categoryData.map((c, idx) => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleFilterChange('category', String(c.id))}
+                    className={`flex items-center justify-between px-3 py-2 rounded-md border transition ${String(filters.category) === String(c.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                  >
+                    <div className="flex items-center">
+                      <span className="w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      <span className="text-sm text-gray-800">{c.name}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">{c.count} • {c.percentage}%</span>
+                  </button>
+                ))}
+                {filters.category && (
+                  <button
+                    onClick={() => handleFilterChange('category', '')}
+                    className="px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-sm text-gray-700"
+                  >Bỏ lọc danh mục</button>
+                )}
+              </div>
+            </>
           ) : (
             <div className="flex items-center justify-center h-64 text-gray-500">
               Không có dữ liệu để hiển thị
@@ -321,21 +421,36 @@ const TrendingAnalysis = () => {
           )}
         </div>
 
-        {/* Top Videos by Views */}
+        {/* Top 10 by Views */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Top 10 Video theo Lượt xem
           </h3>
           {viewsData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={viewsData} layout="horizontal">
+            <ResponsiveContainer width="100%" height={360}>
+              <BarChart data={viewsData} layout="horizontal" margin={{ left: 8, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={formatNumber} />
-                <YAxis dataKey="title" type="category" width={100} />
+                <YAxis dataKey="title" type="category" width={180} />
                 <Tooltip
-                  formatter={(value) => [formatNumber(value), "Lượt xem"]}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const d = payload[0].payload;
+                      return (
+                        <div className="p-3 bg-white rounded-md shadow text-sm">
+                          <div className="font-semibold mb-1">{d.fullTitle}</div>
+                          <div>Channel: <span className="font-medium">{d.channel}</span></div>
+                          <div>Views: <span className="font-medium">{formatNumber(d.views)}</span></div>
+                          <div>Likes: <span className="font-medium">{formatNumber(d.likes)}</span></div>
+                          <div>Comments: <span className="font-medium">{formatNumber(d.comments)}</span></div>
+                          <div>Engagement: <span className="font-medium">{formatPercent(d.engagement)}</span></div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
-                <Bar dataKey="views" fill="#3B82F6" />
+                <Bar dataKey="views" fill="#3B82F6" radius={[4, 4, 4, 4]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -353,7 +468,7 @@ const TrendingAnalysis = () => {
             Danh sách Video Trending
           </h3>
           <span className="text-sm text-gray-500">
-            Hiển thị {videos.length} video
+            Hiển thị {pagedVideos.length} / {videos.length} video
           </span>
         </div>
 
@@ -374,6 +489,9 @@ const TrendingAnalysis = () => {
                   Bình luận
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tương tác
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Danh mục
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -382,7 +500,7 @@ const TrendingAnalysis = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {videos.slice(0, 20).map((video, index) => (
+              {pagedVideos.map((video, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900 max-w-xs truncate">
@@ -400,6 +518,9 @@ const TrendingAnalysis = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatNumber(video.comment_count)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatPercent(calcEngagement(video))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
@@ -425,6 +546,23 @@ const TrendingAnalysis = () => {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-gray-600">Trang {page} / {totalPages}</div>
+          <div className="space-x-2">
+            <button
+              className="px-3 py-1 rounded-md border border-gray-300 text-sm disabled:opacity-50"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >Trước</button>
+            <button
+              className="px-3 py-1 rounded-md border border-gray-300 text-sm disabled:opacity-50"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >Sau</button>
+          </div>
         </div>
       </div>
     </div>

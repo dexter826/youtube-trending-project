@@ -3,6 +3,7 @@ Trending Data Routes for YouTube Analytics API
 """
 
 from fastapi import HTTPException, Query, APIRouter
+
 from datetime import datetime
 from typing import Optional
 import os
@@ -116,14 +117,20 @@ async def get_categories(country: Optional[str] = None):
         raise HTTPException(status_code=500, detail=f"Failed to fetch categories: {str(e)}")
 
 @router.get("/dates")
-async def get_dates():
-    """Get list of available dates"""
+async def get_dates(country: Optional[str] = None):
+    """Get list of available dates, optionally filtered by country.
+    Supports legacy field names by checking both 'date' and 'trending_date'.
+    """
     try:
         if router.db is None:
             raise HTTPException(status_code=500, detail="Database connection not initialized")
 
-        dates = list(router.db.trending_results.distinct("trending_date"))
-        return {"dates": sorted(dates, reverse=True)}
+        filter_query = {"country": country} if country else {}
+        dates_primary = list(router.db.trending_results.distinct("date", filter_query))
+        dates_legacy = list(router.db.trending_results.distinct("trending_date", filter_query))
+        # Merge and deduplicate
+        all_dates = sorted(list({*(d for d in dates_primary if d), *(d for d in dates_legacy if d)}), reverse=True)
+        return {"dates": all_dates}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get dates: {str(e)}")
 
@@ -131,9 +138,17 @@ async def get_dates():
 async def get_trending_videos(
     country: Optional[str] = None,
     category: Optional[str] = None,
-    limit: int = Query(100, le=1000)
+    date: Optional[str] = None,
+    sort_by: Optional[str] = Query("views", description="views|likes|comments|engagement"),
+    order: Optional[str] = Query("desc", description="asc|desc"),
+    limit: int = Query(200, le=1000)
 ):
-    """Get trending videos with filters"""
+    """Get trending videos with filters, date selection and sorting.
+    - date: filter by trending_date (string as stored in DB)
+    - sort_by: one of views, likes, comments (comment_count), engagement
+    - order: asc or desc
+    - limit: internal cap, hidden from UI
+    """
     try:
         if router.db is None:
             logger.error("Database connection is None")
@@ -141,12 +156,26 @@ async def get_trending_videos(
 
         pipeline = []
 
+        # Initial match on document-level fields
         match_stage = {}
         if country:
             match_stage["country"] = country
-        if match_stage:
-            pipeline.append({"$match": match_stage})
+        if date:
+            # Support both 'date' and legacy 'trending_date' fields
+            pipeline.append({
+                "$match": {
+                    "$or": [
+                        {"date": date},
+                        {"trending_date": date}
+                    ],
+                    **({"country": country} if country else {})
+                }
+            })
+        else:
+            if match_stage:
+                pipeline.append({"$match": match_stage})
 
+        # Flatten top_videos and surface fields
         pipeline.extend([
             {"$unwind": "$top_videos"},
             {
@@ -155,18 +184,43 @@ async def get_trending_videos(
                         "$mergeObjects": [
                             "$top_videos",
                             {"video_id": "$top_videos.video_id"},
-                            {"country": "$country", "date": "$date", "processed_at": "$processed_at"}
+                            {"country": "$country", "date": {"$ifNull": ["$date", "$trending_date"]}, "processed_at": "$processed_at"}
                         ]
                     }
                 }
             }
         ])
 
+        # Optional category match (now on flattened docs)
         if category:
             pipeline.append({"$match": {"category_id": int(category)}})
 
+        # Sorting logic
+        sort_field_map = {
+            "views": "views",
+            "likes": "likes",
+            "comments": "comment_count",
+            "engagement": "engagement"
+        }
+        sort_dir = 1 if (order or "desc").lower() == "asc" else -1
+
+        if (sort_by or "views").lower() == "engagement":
+            # Compute engagement safely: (likes + comments) / views
+            pipeline.append({
+                "$addFields": {
+                    "engagement": {
+                        "$cond": [
+                            {"$gt": ["$views", 0]},
+                            {"$divide": [{"$add": [{"$ifNull": ["$likes", 0]}, {"$ifNull": ["$comment_count", 0]}]}, "$views"]},
+                            0
+                        ]
+                    }
+                }
+            })
+        
+        sort_field = sort_field_map.get((sort_by or "views").lower(), "views")
         pipeline.extend([
-            {"$sort": {"views": -1}},
+            {"$sort": {sort_field: sort_dir}},
             {"$limit": limit}
         ])
 
