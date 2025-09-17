@@ -1,5 +1,6 @@
 from typing import Dict, Any
 import logging
+import asyncio
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -26,18 +27,20 @@ class HealthService:
         
         for name, check_func in self._health_checks.items():
             try:
-                if hasattr(check_func, '__call__'):
-                    # Handle both sync and async functions
-                    if hasattr(check_func, '__await__'):
-                        result = await check_func()
-                    else:
-                        result = check_func()
-                    
-                    health_status["services"][name] = result
-                    if not result.get("healthy", True):
-                        overall_healthy = False
+                # Check if it's a coroutine function
+                if asyncio.iscoroutinefunction(check_func):
+                    result = await check_func()
                 else:
-                    health_status["services"][name] = {"healthy": True, "message": "Service registered"}
+                    # For regular functions, check if callable
+                    if callable(check_func):
+                        result = check_func()
+                    else:
+                        result = {"healthy": True, "message": "Service registered"}
+                
+                health_status["services"][name] = result
+                if not result.get("healthy", True):
+                    overall_healthy = False
+                    
             except Exception as e:
                 logger.error(f"Health check failed for {name}: {e}")
                 health_status["services"][name] = {
