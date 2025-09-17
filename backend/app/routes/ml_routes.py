@@ -31,11 +31,32 @@ async def health_check():
     try:
         if router.db is None:
             raise HTTPException(status_code=500, detail="Database connection not initialized")
+        if router.get_ml_service is None:
+            raise HTTPException(status_code=500, detail="ML service not initialized")
         
         router.db.client.admin.command('ping')
-        return {"status": "healthy", "service": "ml"}
+        
+        ml_service = router.get_ml_service()
+        if ml_service is None:
+            raise HTTPException(status_code=500, detail="ML service not available")
+        
+        # Get comprehensive model info from evaluator
+        return ml_service.get_model_info()
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ML health check failed: {str(e)}")
+        # Return error response but still include basic structure
+        return {
+            "loaded_models": [],
+            "is_trained": False,
+            "model_type": "spark_mllib",
+            "framework": "Apache Spark MLlib",
+            "storage": "HDFS",
+            "model_details": {},
+            "total_models": 0,
+            "spark_session": False,
+            "metrics": {},
+            "error": str(e)
+        }
 
 @router.post("/train")
 async def train_ml_models():
