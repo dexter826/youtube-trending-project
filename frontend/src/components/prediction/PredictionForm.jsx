@@ -140,6 +140,38 @@ const PredictionForm = ({
             />
           </div>
 
+          {/* Thời gian và độ tuổi video để khớp đặc trưng training */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Giờ đăng (0-23)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={23}
+                value={videoData.publish_hour}
+                onChange={(e) => handleInputChange("publish_hour", e.target.value)}
+                placeholder="12"
+                className="input-field"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Độ tuổi video (proxy)
+              </label>
+              <select
+                value={videoData.video_age_proxy}
+                onChange={(e) => handleInputChange("video_age_proxy", e.target.value)}
+                className="input-field"
+              >
+                <option value={0}>0 = Mới (&lt; 24h)</option>
+                <option value={1}>1 = 1-7 ngày</option>
+                <option value={2}>2 = &gt; 7 ngày</option>
+              </select>
+            </div>
+          </div>
 
         </div>
       </div>

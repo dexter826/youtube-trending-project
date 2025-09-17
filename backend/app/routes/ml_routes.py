@@ -24,6 +24,8 @@ class VideoMLInput(BaseModel):
     comment_count: int = 0
     category_id: int = 0
     tags: str = ""
+    publish_hour: int = 12
+    video_age_proxy: int = 2
 
 @router.get("/health")
 async def health_check():
