@@ -10,6 +10,10 @@ import {
   PieChart,
   Pie,
   Cell,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  Legend,
 } from "recharts";
 import {
   Filter,
@@ -97,6 +101,18 @@ const TrendingAnalysis = () => {
     }
   };
 
+  // Color palette used across charts
+  const COLORS = [
+    "#3B82F6",
+    "#EF4444",
+    "#10B981",
+    "#F59E0B",
+    "#8B5CF6",
+    "#EC4899",
+    "#6B7280",
+    "#14B8A6",
+  ];
+
   // Prepare chart data
   const categoryData = categories
     .map((cat) => {
@@ -110,6 +126,64 @@ const TrendingAnalysis = () => {
       };
     })
     .filter((item) => item.count > 0);
+
+  // Top Channels aggregation: count videos per channel and average engagement/views
+  const channelMap = videos.reduce((acc, v) => {
+    const ch = v.channel_title || "Unknown Channel";
+    const views = v.views || 0;
+    const likes = v.likes || 0;
+    const comments = v.comment_count || 0;
+    if (!acc[ch]) acc[ch] = { channel: ch, count: 0, viewsSum: 0, engSum: 0, engDen: 0 };
+    acc[ch].count += 1;
+    acc[ch].viewsSum += views;
+    if (views > 0) {
+      acc[ch].engSum += (likes + comments) / views;
+      acc[ch].engDen += 1;
+    }
+    return acc;
+  }, {});
+
+  let channelStats = Object.values(channelMap)
+    .map((c) => ({
+      channel: c.channel,
+      count: c.count,
+      avgViews: c.count > 0 ? c.viewsSum / c.count : 0,
+      avgEng: c.engDen > 0 ? c.engSum / c.engDen : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  channelStats = channelStats.slice(0, 12);
+
+  // Fixed height to match prior chart sizing
+  const topChannelsHeight = 600;
+
+  // Scatter data: Views vs Engagement (size by comments), limited to top 100 videos by views (as provided order)
+  const scatterRaw = videos.slice(0, 100).map((v) => ({
+    x: v.views || 0,
+    y: (v.views || 0) > 0 ? ((v.likes || 0) + (v.comment_count || 0)) / (v.views || 1) : 0,
+    z: Math.max(10, Math.min(300, v.comment_count || 0)),
+    title: v.title || "Untitled",
+    channel: v.channel_title || "Unknown Channel",
+    category_id: v.category_id,
+  }));
+
+  // Group scatter points by category to colorize
+  const catNameById = (id) => {
+    const c = categories.find((k) => k.id === id);
+    return c ? c.name : "Other";
+  };
+
+  const scatterGroupsMap = scatterRaw.reduce((acc, p) => {
+    const name = catNameById(p.category_id);
+    if (!acc[name]) acc[name] = [];
+    acc[name].push(p);
+    return acc;
+  }, {});
+
+  const scatterGroups = Object.entries(scatterGroupsMap)
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 7) // limit number of legend entries/colors
+    .map(([name, data], idx) => ({ name, data, color: COLORS[idx % COLORS.length] }));
 
   // Get category name from ID
   const getCategoryName = (categoryId) => {
@@ -125,34 +199,6 @@ const TrendingAnalysis = () => {
     return null;
   };
 
-  const viewsData = videos.slice(0, 10).map((video) => {
-    const title = video.title || "Untitled";
-    const shortTitle = title.length > 40 ? title.substring(0, 37) + "..." : title;
-    const views = video.views || 0;
-    const likes = video.likes || 0;
-    const comments = video.comment_count || 0;
-    const engagement = views > 0 ? ((likes + comments) / views) : 0;
-    return {
-      title: shortTitle,
-      fullTitle: title,
-      views,
-      likes,
-      comments,
-      engagement,
-      channel: video.channel_title || "Unknown Channel",
-    };
-  });
-
-  const COLORS = [
-    "#3B82F6",
-    "#EF4444",
-    "#10B981",
-    "#F59E0B",
-    "#8B5CF6",
-    "#EC4899",
-    "#6B7280",
-    "#14B8A6",
-  ];
 
   const formatNumber = (num) => {
     if (num >= 1000000) {
@@ -421,44 +467,72 @@ const TrendingAnalysis = () => {
           )}
         </div>
 
-        {/* Top 10 by Views */}
+        {/* Top Channels by Trending Count */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Top 10 Video theo Lượt xem
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            Kênh xuất hiện nhiều trong Trending
           </h3>
-          {viewsData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={360}>
-              <BarChart data={viewsData} layout="horizontal" margin={{ left: 8, right: 16 }}>
+          <p className="text-sm text-gray-500 mb-4">Hiển thị số video trending theo kênh. Tooltip có Engagement TB và Views TB.</p>
+          {channelStats.length > 0 ? (
+            <ResponsiveContainer width="100%" height={topChannelsHeight}>
+              <BarChart data={channelStats} layout="horizontal" margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={formatNumber} />
-                <YAxis dataKey="title" type="category" width={180} />
+                <YAxis dataKey="channel" type="category" width={180} interval={0} />
                 <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const d = payload[0].payload;
                       return (
                         <div className="p-3 bg-white rounded-md shadow text-sm">
-                          <div className="font-semibold mb-1">{d.fullTitle}</div>
-                          <div>Channel: <span className="font-medium">{d.channel}</span></div>
-                          <div>Views: <span className="font-medium">{formatNumber(d.views)}</span></div>
-                          <div>Likes: <span className="font-medium">{formatNumber(d.likes)}</span></div>
-                          <div>Comments: <span className="font-medium">{formatNumber(d.comments)}</span></div>
-                          <div>Engagement: <span className="font-medium">{formatPercent(d.engagement)}</span></div>
+                          <div className="font-semibold mb-1">{d.channel}</div>
+                          <div>Số video: <span className="font-medium">{d.count}</span></div>
+                          <div>Views TB: <span className="font-medium">{formatNumber(Math.round(d.avgViews))}</span></div>
+                          <div>Engagement TB: <span className="font-medium">{formatPercent(d.avgEng)}</span></div>
                         </div>
                       );
                     }
                     return null;
                   }}
                 />
-                <Bar dataKey="views" fill="#3B82F6" radius={[4, 4, 4, 4]} />
+                <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 4, 4]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              Không có dữ liệu để hiển thị
-            </div>
+            <div className="flex items-center justify-center h-64 text-gray-500">Không có dữ liệu</div>
           )}
         </div>
+      </div>
+
+      {/* Scatter: Views vs Engagement (size by Comments) */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Views vs Engagement (Scatter)</h3>
+        <p className="text-sm text-gray-500 mb-4">Màu theo danh mục, kích thước theo số bình luận. Tối đa 100 video.</p>
+        {scatterGroups.length > 0 ? (
+          <ResponsiveContainer width="100%" height={380}>
+            <ScatterChart margin={{ left: 24, right: 24, top: 8, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" dataKey="x" name="Views" tickFormatter={formatNumber} />
+              <YAxis type="number" dataKey="y" name="Engagement" tickFormatter={formatPercent} />
+              <ZAxis type="number" dataKey="z" range={[40, 200]} name="Comments" />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }}
+                formatter={(value, name) => {
+                  if (name === 'x') return [formatNumber(value), 'Views'];
+                  if (name === 'y') return [formatPercent(value), 'Engagement'];
+                  if (name === 'z') return [formatNumber(value), 'Comments'];
+                  return [value, name];
+                }}
+                labelFormatter={(label, payload) => (payload && payload[0] && payload[0].payload ? payload[0].payload.title : '')}
+              />
+              <Legend />
+              {scatterGroups.map((g, idx) => (
+                <Scatter key={g.name} name={g.name} data={g.data} fill={g.color} />
+              ))}
+            </ScatterChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-64 text-gray-500">Không có dữ liệu</div>
+        )}
       </div>
 
       {/* Video List */}
