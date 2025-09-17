@@ -4,7 +4,6 @@ import {
   BarChart3,
   TrendingUp,
   Brain,
-  Settings,
   Menu,
   X,
   Youtube,
@@ -20,7 +19,6 @@ const Navbar = () => {
     { name: "Dashboard", href: "/", icon: BarChart3 },
     { name: "Phân tích Trending", href: "/analysis", icon: TrendingUp },
     { name: "Dự đoán Video", href: "/prediction", icon: Brain },
-    { name: "Đánh giá Mô hình", href: "/evaluation", icon: Settings },
   ];
 
   const isActive = (path) => location.pathname === path;

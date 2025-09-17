@@ -4,7 +4,6 @@ import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import TrendingAnalysis from './pages/TrendingAnalysis';
 import PredictionPage from './pages/PredictionPage';
-import ModelEvaluation from './pages/ModelEvaluation';
 import { ApiProvider } from './context/ApiContext';
 
 function App() {
@@ -18,7 +17,6 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/analysis" element={<TrendingAnalysis />} />
               <Route path="/prediction" element={<PredictionPage />} />
-              <Route path="/evaluation" element={<ModelEvaluation />} />
             </Routes>
           </main>
         </div>
