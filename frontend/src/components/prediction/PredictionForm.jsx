@@ -39,19 +39,6 @@ const PredictionForm = ({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tên kênh
-            </label>
-            <input
-              type="text"
-              value={videoData.channel_title}
-              onChange={(e) => handleInputChange("channel_title", e.target.value)}
-              placeholder="Nhập tên kênh..."
-              className="input-field"
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
