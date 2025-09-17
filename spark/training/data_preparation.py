@@ -3,7 +3,7 @@ Data Preparation Module for ML Training
 """
 
 import pandas as pd
-from pyspark.sql.functions import col, lit, when, log
+from pyspark.sql.functions import col, lit, when, log, count as F_count, max as F_max
 
 
 class DataPreparation:
@@ -97,4 +97,44 @@ class DataPreparation:
         ]
 
         data = df.select(feature_cols + ["log_views"]).na.fill(0)
+        return data, feature_cols
+
+    def prepare_features_for_days_regression(self, df):
+        """Prepare features for days-in-trending regression.
+        Aggregates per video_id and computes label days_in_trending.
+        """
+        # Ensure required columns exist
+        if "publish_hour" not in df.columns:
+            df = df.withColumn("publish_hour", lit(12))
+        if "video_age_proxy" not in df.columns:
+            df = df.withColumn("video_age_proxy",
+                              when(col("engagement_score") > 0.1, 1).otherwise(2))
+
+        # Aggregate per video to get label and representative features
+        agg = df.groupBy("video_id").agg(
+            F_max("title").alias("title"),
+            F_max("tags").alias("tags"),
+            F_max("category_id").alias("category_id"),
+            F_max("views").alias("views"),
+            F_max("likes").alias("likes"),
+            F_max("dislikes").alias("dislikes"),
+            F_max("comment_count").alias("comment_count"),
+            F_max("publish_hour").alias("publish_hour"),
+            F_max("video_age_proxy").alias("video_age_proxy"),
+            F_count(lit(1)).alias("days_in_trending"),
+        )
+
+        # Derived features consistent with inference
+        agg = agg.withColumn("like_ratio", (col("likes") / (col("views") + lit(1e-9)))) \
+                 .withColumn("engagement_score", (col("likes") + col("comment_count")) / (col("views") + lit(1e-9))) \
+                 .withColumn("title_length", col("title").cast("string").substr(lit(1), lit(100000)).length()) \
+                 .withColumn("tag_count", when(col("tags").isNull(), lit(0)).otherwise(lit(1)))
+
+        feature_cols = [
+            "views", "likes", "dislikes", "comment_count", "like_ratio",
+            "engagement_score", "title_length", "tag_count", "category_id",
+            "publish_hour", "video_age_proxy"
+        ]
+
+        data = agg.select(feature_cols + ["days_in_trending"]).na.fill(0)
         return data, feature_cols

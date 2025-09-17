@@ -46,20 +46,7 @@ class YouTubeMLTrainer:
         return df
 
     def train_trending_prediction_model(self, df):
-        """Train trending prediction model using modular components"""
-        # Prepare data
-        data, feature_cols = self.data_prep.prepare_features_for_trending_prediction(df)
-
-        # Train model
-        model, train_data, test_data, predictions = self.model_training.train_trending_prediction_model(data, feature_cols)
-
-        # Evaluate model
-        metrics = self.model_evaluation.evaluate_trending_prediction_model(predictions, feature_cols)
-
-        # Save model
-        model_path = self.model_saving.save_model(model, "trending_prediction")
-
-        return model, metrics
+        return None, {}
 
     def train_clustering_model(self, df):
         """Train clustering model using modular components"""
@@ -81,19 +68,19 @@ class YouTubeMLTrainer:
 
         return model, metrics
 
-    def train_regression_model(self, df):
-        """Train regression model using modular components"""
+    def train_days_regression_model(self, df):
+        """Train days-in-trending regression model"""
         # Prepare data
-        data, feature_cols = self.data_prep.prepare_features_for_regression(df)
+        data, feature_cols = self.data_prep.prepare_features_for_days_regression(df)
 
         # Train model
-        model, train_data, test_data, predictions = self.model_training.train_regression_model(data, feature_cols)
+        model, train_data, test_data, predictions = self.model_training.train_days_regression_model(data, feature_cols)
 
         # Evaluate model
-        metrics = self.model_evaluation.evaluate_regression_model(predictions, feature_cols)
+        metrics = self.model_evaluation.evaluate_days_regression_model(predictions, feature_cols)
 
         # Save model
-        model_path = self.model_saving.save_model(model, "regression")
+        model_path = self.model_saving.save_model(model, "days_regression")
 
         return model, metrics
 
@@ -115,28 +102,26 @@ class YouTubeMLTrainer:
             print(f"   [INFO] Loaded {record_count} training records")
 
             # Step 2: Train models
-            print("\n🎯 Step 2/3: Training ML models...")
+            print("\n🎯 Step 2/3: Training ML models (Clustering k=3, Days Regression)...")
             step_start = time.time()
-
-            # Train trending prediction model
-            print("   [TRAINING] Training trending prediction model...")
-            trending_model, trending_metrics = self.train_trending_prediction_model(df)
-            print(f"      [METRICS] AUC: {trending_metrics['auc']:.3f}, Accuracy: {trending_metrics['accuracy']:.3f}")
 
             # Train clustering model
             print("   [TRAINING] Training clustering model...")
             clustering_model, clustering_metrics = self.train_clustering_model(df)
             print(f"      [METRICS] Silhouette Score: {clustering_metrics['silhouette_score']:.3f}")
 
-            # Train regression model
-            print("   [TRAINING] Training regression model...")
-            regression_model, regression_metrics = self.train_regression_model(df)
-            print(f"      [METRICS] R² Score: {regression_metrics['r2_score']:.3f}, RMSE: {regression_metrics['rmse']:.4f}")
+            # Train days-in-trending regression model
+            print("   [TRAINING] Training days-in-trending regression model...")
+            days_model, days_metrics = self.train_days_regression_model(df)
+            print(f"      [METRICS] R² Score: {days_metrics['r2_score']:.3f}, RMSE: {days_metrics['rmse']:.4f}")
 
             # Step 3: Save results
             print("\n💾 Step 3/3: Saving models and metrics...")
             step_start = time.time()
             dataset_size = df.count()
+            # Compose metrics for backward compatibility keys
+            trending_metrics = {}
+            regression_metrics = days_metrics  # repurpose 'regression' key as days metrics
             metrics_path = self.model_saving.save_metrics_to_json(
                 trending_metrics, clustering_metrics, regression_metrics, dataset_size
             )
@@ -153,8 +138,8 @@ class YouTubeMLTrainer:
                 "\n[SUCCESS] ML Training Pipeline completed successfully!"
             )
             print(f"   [INFO] Dataset size: {dataset_size} records")
-            print("   [INFO] Models trained: 3 (Trending, Clustering, Regression)")
-            return all([trending_model, clustering_model, regression_model])
+            print("   [INFO] Models trained: 2 (Clustering k=3, Days Regression)")
+            return all([clustering_model, days_model])
 
         except Exception as e:
             print(f"\n[ERROR] Training pipeline failed with error: {e}")

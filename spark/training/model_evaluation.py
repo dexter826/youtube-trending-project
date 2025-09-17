@@ -52,7 +52,7 @@ class ModelEvaluation:
 
         clustering_metrics = {
             "silhouette_score": float(silhouette),
-            "num_clusters": 4,
+            "num_clusters": 3,
             "features_used": feature_cols
         }
 
@@ -73,6 +73,27 @@ class ModelEvaluation:
             "rmse": float(rmse),
             "mae": float(mae),
             "r2_score": float(r2),
+            "features_used": feature_cols
+        }
+
+        return regression_metrics
+
+    def evaluate_days_regression_model(self, predictions, feature_cols):
+        """Evaluate days-in-trending regression model and return metrics"""
+        evaluator = RegressionEvaluator(
+            labelCol="days_in_trending",
+            predictionCol="prediction"
+        )
+
+        rmse = evaluator.evaluate(predictions, {evaluator.metricName: "rmse"})
+        mae = evaluator.evaluate(predictions, {evaluator.metricName: "mae"})
+        r2 = evaluator.evaluate(predictions, {evaluator.metricName: "r2"})
+
+        regression_metrics = {
+            "rmse": float(rmse),
+            "mae": float(mae),
+            "r2_score": float(r2),
+            "label": "days_in_trending",
             "features_used": feature_cols
         }
 

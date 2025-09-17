@@ -40,7 +40,9 @@ class ModelLoader:
             hdfs_model_paths = {
                 "trending_classifier": "hdfs://localhost:9000/youtube_trending/models/trending_prediction",
                 "views_regressor": "hdfs://localhost:9000/youtube_trending/models/regression",
-                "content_clusterer": "hdfs://localhost:9000/youtube_trending/models/clustering"
+                "content_clusterer": "hdfs://localhost:9000/youtube_trending/models/clustering",
+                # optional: new regressor for days in trending
+                "days_regressor": "hdfs://localhost:9000/youtube_trending/models/days_regression",
             }
 
             loaded_count = 0
@@ -52,7 +54,8 @@ class ModelLoader:
                 except Exception as e:
                     pass
 
-            self.is_trained = loaded_count == len(hdfs_model_paths)
+            # Consider trained if at least clustering is available; other models are optional
+            self.is_trained = loaded_count >= 1
             return self.is_trained
 
         except Exception as e:

@@ -45,14 +45,14 @@ class MLService:
             raise HTTPException(status_code=503, detail="Spark initialization failed")
 
     # Delegate methods to services
-    def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        return self.predictor.predict_trending(video_data)
-
     def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         return self.predictor.predict_views(video_data)
 
     def predict_cluster(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         return self.predictor.predict_cluster(video_data)
+
+    def predict_days(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
+        return self.predictor.predict_days(video_data)
 
     def train_models(self) -> bool:
         return self.evaluator.train_models()

@@ -12,35 +12,6 @@ class Predictor:
         self.model_loader = model_loader
         self.feature_processor = feature_processor
 
-    def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict if a video will be trending"""
-        try:
-            if not self.model_loader.is_trained or "trending_classifier" not in self.model_loader.models:
-                raise HTTPException(status_code=503, detail="Trending classifier not available. Train models first.")
-
-            input_df = self.feature_processor.create_trending_dataframe(video_data)
-            model = self.model_loader.models["trending_classifier"]
-            predictions = model.transform(input_df)
-            result = predictions.select("prediction", "probability").collect()[0]
-            
-            prediction = int(result["prediction"])
-            probability = float(result["probability"][1])
-
-            # Adjust threshold for imbalanced data
-            if probability > 0.1:  # Lower threshold for trending prediction
-                prediction = 1
-            else:
-                prediction = 0
-
-            return {
-                "trending_probability": probability,
-                "prediction": prediction,
-                "confidence": "high" if probability > 0.7 or probability < 0.3 else "medium",
-                "method": "spark_mllib"
-            }
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         """Predict view count for a video"""
@@ -66,11 +37,42 @@ class Predictor:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
+    def predict_days(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Predict number of days a video may stay on trending.
+        If trained model 'days_regressor' is unavailable, use a heuristic fallback.
+        """
+        try:
+            model = self.model_loader.models.get("days_regressor")
+            if model is not None:
+                # Reuse regression features; trained pipeline should match training stage.
+                input_df = self.feature_processor.create_regression_dataframe(video_data)
+                predictions = model.transform(input_df)
+                result = predictions.select("prediction").collect()[0]
+                predicted_days = max(0.0, float(result["prediction"]))
+            else:
+                # Heuristic fallback using engagement and scale
+                views = max(float(video_data.get("views", 0)), 1.0)
+                likes = float(video_data.get("likes", 0))
+                comments = float(video_data.get("comment_count", 0))
+                engagement = (likes + comments) / views
+                # Simple scoring: base on log scale and engagement
+                score = math.log1p(views) * (0.5 + engagement)
+                predicted_days = min(10.0, max(0.0, score))
+
+            return {
+                "predicted_days": float(round(predicted_days, 2)),
+                "confidence": "medium" if model is None else "high",
+                "method": "spark_mllib" if model is not None else "heuristic"
+            }
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Days prediction failed: {str(e)}")
+
     def predict_cluster(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         """Predict content cluster for a video"""
         try:
-            if not self.model_loader.is_trained or "content_clusterer" not in self.model_loader.models:
-                raise HTTPException(status_code=503, detail="Content clusterer not available. Train models first.")
+            if "content_clusterer" not in self.model_loader.models:
+                raise HTTPException(status_code=503, detail="Content clusterer not available.")
 
             input_df = self.feature_processor.create_clustering_dataframe(video_data)
 

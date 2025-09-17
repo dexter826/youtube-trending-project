@@ -75,43 +75,16 @@ async def train_ml_models():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to train ML models: {str(e)}")
 
-@router.post("/predict/trending")
-async def predict_trending(video_data: VideoMLInput):
-    """Predict if a video will be trending"""
-    try:
-        ml_service = router.get_ml_service()
-        if not ml_service:
-            raise HTTPException(status_code=500, detail="ML service not initialized")
-
-        if not ml_service.is_trained:
-            raise HTTPException(
-                status_code=503,
-                detail="Models not trained. Please train models first."
-            )
-
-        video_dict = video_data.dict()
-        result = ml_service.predict_trending(video_dict)
-
-        return {
-            "prediction": result,
-            "input_data": video_dict,
-            "timestamp": datetime.now().isoformat()
-        }
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-@router.post("/predict/views")
-async def predict_views(video_data: VideoMLInput):
-    """Predict view count for a video"""
+@router.post("/predict/days")
+async def predict_days(video_data: VideoMLInput):
+    """Predict number of days a video may stay on trending"""
     try:
         ml_service = router.get_ml_service()
         if not ml_service:
             raise HTTPException(status_code=500, detail="ML service not initialized")
 
         video_dict = video_data.dict()
-        result = ml_service.predict_views(video_dict)
+        result = ml_service.predict_days(video_dict)
 
         return {
             "prediction": result,
@@ -119,7 +92,8 @@ async def predict_views(video_data: VideoMLInput):
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Views prediction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Days prediction failed: {str(e)}")
+
 
 @router.post("/predict/cluster")
 async def predict_cluster(video_data: VideoMLInput):

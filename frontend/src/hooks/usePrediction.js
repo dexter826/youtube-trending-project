@@ -2,21 +2,15 @@ import { useState } from "react";
 import { useApi } from "../context/ApiContext";
 
 export const usePrediction = () => {
-  const {
-    predictTrending,
-    predictViews,
-    predictCluster,
-  } = useApi();
+  const { predictDays, predictCluster } = useApi();
 
   const [predictions, setPredictions] = useState({
-    trending: null,
-    views: null,
+    days: null,
     cluster: null,
   });
 
   const [predictionLoading, setPredictionLoading] = useState({
-    trending: false,
-    views: false,
+    days: false,
     cluster: false,
     all: false,
   });
@@ -29,13 +23,9 @@ export const usePrediction = () => {
     try {
       let result;
       switch (type) {
-        case "trending":
-          result = await predictTrending(videoData);
-          setPredictions((prev) => ({ ...prev, trending: result }));
-          break;
-        case "views":
-          result = await predictViews(videoData);
-          setPredictions((prev) => ({ ...prev, views: result }));
+        case "days":
+          result = await predictDays(videoData);
+          setPredictions((prev) => ({ ...prev, days: result }));
           break;
         case "cluster":
           result = await predictCluster(videoData);
@@ -55,40 +45,33 @@ export const usePrediction = () => {
     setPredictionLoading((prev) => ({
       ...prev,
       all: true,
-      trending: true,
-      views: true,
+      days: true,
       cluster: true,
     }));
     // Clear all predictions
-    setPredictions({ trending: null, views: null, cluster: null });
+    setPredictions({ days: null, cluster: null });
 
     try {
-      const [trendingResult, viewsResult, clusterResult] = await Promise.all([
-        predictTrending(videoData),
-        predictViews(videoData),
+      const [daysResult, clusterResult] = await Promise.all([
+        predictDays(videoData),
         predictCluster(videoData),
       ]);
 
-      setPredictions({
-        trending: trendingResult,
-        views: viewsResult,
-        cluster: clusterResult,
-      });
+      setPredictions({ days: daysResult, cluster: clusterResult });
     } catch (err) {
       // Error handled by ApiContext
     } finally {
       setPredictionLoading((prev) => ({
         ...prev,
         all: false,
-        trending: false,
-        views: false,
+        days: false,
         cluster: false,
       }));
     }
   };
 
   const clearPredictions = () => {
-    setPredictions({ trending: null, views: null, cluster: null });
+    setPredictions({ days: null, cluster: null });
   };
 
   return {

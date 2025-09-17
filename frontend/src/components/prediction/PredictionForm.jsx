@@ -1,5 +1,5 @@
 import React from "react";
-import { Play, Zap, TrendingUp, Eye, Target } from "lucide-react";
+import { Play, Zap, TrendingUp, Target } from "lucide-react";
 
 const PredictionForm = ({
   videoData,
@@ -189,26 +189,17 @@ const PredictionForm = ({
             className="btn-primary w-full flex items-center justify-center space-x-2"
           >
             <Zap className="w-4 h-4" />
-            <span>Dự đoán Tất cả</span>
+            <span>Dự đoán (Days + Cluster)</span>
           </button>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => onPredict("trending")}
+              onClick={() => onPredict("days")}
               disabled={loading || !mlHealth?.is_trained || !isFormValid}
               className="btn-secondary text-xs flex items-center justify-center space-x-1"
             >
               <TrendingUp className="w-3 h-3" />
-              <span>Trending</span>
-            </button>
-
-            <button
-              onClick={() => onPredict("views")}
-              disabled={loading || !mlHealth?.is_trained || !isFormValid}
-              className="btn-secondary text-xs flex items-center justify-center space-x-1"
-            >
-              <Eye className="w-3 h-3" />
-              <span>Views</span>
+              <span>Days</span>
             </button>
 
             <button

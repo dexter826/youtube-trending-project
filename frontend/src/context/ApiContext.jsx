@@ -101,12 +101,8 @@ export const ApiProvider = ({ children }) => {
     return apiCall('POST', '/ml/train');
   }, [apiCall]);
 
-  const predictTrending = useCallback(async (videoData) => {
-    return apiCall('POST', '/ml/predict/trending', videoData);
-  }, [apiCall]);
-
-  const predictViews = useCallback(async (videoData) => {
-    return apiCall('POST', '/ml/predict/views', videoData);
+  const predictDays = useCallback(async (videoData) => {
+    return apiCall('POST', '/ml/predict/days', videoData);
   }, [apiCall]);
 
   const predictCluster = useCallback(async (videoData) => {
@@ -143,8 +139,7 @@ export const ApiProvider = ({ children }) => {
     fetchDates,
     checkMLHealth,
     trainModels,
-    predictTrending,
-    predictViews,
+    predictDays,
     predictCluster,
     processData,
     fetchDatabaseStats,

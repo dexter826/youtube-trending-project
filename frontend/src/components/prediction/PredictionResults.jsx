@@ -1,5 +1,6 @@
 import React from "react";
-import { TrendingUp, Eye, Target, CheckCircle } from "lucide-react";
+import { TrendingUp, Target, CheckCircle } from "lucide-react";
+
 import LoadingSpinner from "../LoadingSpinner";
 
 const PredictionCard = ({
@@ -29,7 +30,7 @@ const PredictionCard = ({
         <LoadingSpinner message="Đang thực hiện dự đoán..." />
       ) : result ? (
         <div className="w-full space-y-3">
-          {/* Hiển thị kết quả dưới dạng bảng */}
+          {/* Hiển thị kết quả dướidạng bảng */}
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto border-collapse border border-gray-300">
               <thead>
@@ -44,53 +45,19 @@ const PredictionCard = ({
               </thead>
               <tbody>
                 {/* Sử dụng result.prediction thay vì result trực tiếp */}
-                {result.prediction?.trending_probability !== undefined && (
+                {result.prediction?.predicted_days !== undefined && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Xác suất Trending
-                    </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm font-bold ${
-                        result.prediction.trending_probability > 0.7
-                          ? "text-green-600"
-                          : result.prediction.trending_probability > 0.4
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {(result.prediction.trending_probability * 100).toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                  </tr>
-                )}
-                {result.prediction?.prediction !== undefined && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Dự đoán
+                      Số ngày dự kiến nằm trong Trending
                     </td>
                     <td
                       className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
                     >
-                      {result.prediction.prediction === 1
-                        ? "Có khả năng trending"
-                        : "Không trending"}
+                      {result.prediction.predicted_days}
                     </td>
                   </tr>
                 )}
-                {result.prediction?.predicted_views !== undefined && (
-                  <tr>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Dự đoán lượt xem
-                    </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
-                    >
-                      {formatNumber(result.prediction.predicted_views)}
-                    </td>
-                  </tr>
-                )}
+
                 {result.prediction?.cluster !== undefined && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
@@ -165,38 +132,22 @@ const PredictionCard = ({
   </div>
 );
 
-const formatNumber = (num) => {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + "M";
-  } else if (num >= 1000) {
-    return (num / 1000).toFixed(1) + "K";
-  }
-  return num?.toLocaleString() || "0";
-};
+// No number formatting needed currently
 
 const PredictionResults = ({ predictions, predictionLoading }) => {
   return (
     <div className="space-y-6">
       <PredictionCard
-        title="Dự đoán Trending"
+        title="Dự đoán Số ngày Trending"
         icon={TrendingUp}
-        result={predictions.trending}
-        color="green"
-        type="trending"
-        loading={predictionLoading.trending}
-      />
-
-      <PredictionCard
-        title="Dự đoán Lượt xem"
-        icon={Eye}
-        result={predictions.views}
+        result={predictions.days}
         color="blue"
-        type="views"
-        loading={predictionLoading.views}
+        type="days"
+        loading={predictionLoading.days}
       />
 
       <PredictionCard
-        title="Phân loại Nội dung"
+        title="Phân cụm Nội dung"
         icon={Target}
         result={predictions.cluster}
         color="purple"
