@@ -15,24 +15,13 @@ class Predictor:
     def predict_trending(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         """Predict if a video will be trending"""
         try:
-            print(f"DEBUG: Starting predict_trending with video_data: {video_data}")
-            
             if not self.model_loader.is_trained or "trending_classifier" not in self.model_loader.models:
-                print("DEBUG: Trending classifier not available. Train models first.")
                 raise HTTPException(status_code=503, detail="Trending classifier not available. Train models first.")
 
             input_df = self.feature_processor.create_trending_dataframe(video_data)
-            print(f"DEBUG: Created dataframe: {input_df.count()} rows")
-
             model = self.model_loader.models["trending_classifier"]
-            print(f"DEBUG: Model type: {type(model)}")
-            print(f"DEBUG: Model is None: {model is None}")
-            
             predictions = model.transform(input_df)
-            print("DEBUG: Model transform completed")
-
             result = predictions.select("prediction", "probability").collect()[0]
-            print(f"DEBUG: Result: {result}")
             
             prediction = int(result["prediction"])
             probability = float(result["probability"][1])
@@ -51,9 +40,6 @@ class Predictor:
             }
 
         except Exception as e:
-            print(f"DEBUG: Error in predict_trending: {str(e)}")
-            import traceback
-            traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
     def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:

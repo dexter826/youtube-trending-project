@@ -56,19 +56,18 @@ async def train_ml_models():
 async def predict_trending(video_data: VideoMLInput):
     """Predict if a video will be trending"""
     try:
-        print(f"DEBUG: /predict/trending called with: {video_data.dict()}")
         ml_service = router.get_ml_service()
         if not ml_service:
             raise HTTPException(status_code=500, detail="ML service not initialized")
 
-        # Debug model status
-        print(f"DEBUG: is_trained: {ml_service.is_trained}")
-        print(f"DEBUG: models keys: {list(ml_service.models.keys())}")
-        print(f"DEBUG: trending_classifier type: {type(ml_service.models.get('trending_classifier'))}")
+        if not ml_service.is_trained:
+            raise HTTPException(
+                status_code=503,
+                detail="Models not trained. Please train models first."
+            )
 
         video_dict = video_data.dict()
         result = ml_service.predict_trending(video_dict)
-        print(f"DEBUG: Prediction result: {result}")
 
         return {
             "prediction": result,
@@ -76,12 +75,8 @@ async def predict_trending(video_data: VideoMLInput):
             "timestamp": datetime.now().isoformat()
         }
     except HTTPException as e:
-        print(f"DEBUG: HTTPException: {e.detail}")
         raise e
     except Exception as e:
-        print(f"DEBUG: Exception: {str(e)}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 @router.post("/predict/views")

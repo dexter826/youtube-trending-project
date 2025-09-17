@@ -33,7 +33,7 @@ def load_category_mappings():
                     data = json.load(f)
                     mapping = {}
                     for item in data.get('items', []):
-                        cat_id = int(item['id'])
+                        cat_id = str(item['id'])  # Convert to string for consistent keys
                         title = item['snippet']['title']
                         mapping[cat_id] = title
                     CATEGORY_MAPPINGS[country] = mapping
@@ -89,7 +89,23 @@ async def get_categories(country: Optional[str] = None):
 
         filter_query = {"country": country} if country else {}
         categories = list(router.db.trending_results.distinct("top_videos.category_id", filter_query))
-        category_names = {str(cat_id): CATEGORY_MAPPINGS.get(str(cat_id), f"Category {cat_id}") 
+        
+        # Load category mapping from file directly
+        data_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data')
+        filepath = os.path.join(data_dir, 'US_category_id.json')
+        
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                mapping = {}
+                for item in data.get('items', []):
+                    cat_id = str(item['id'])
+                    title = item['snippet']['title']
+                    mapping[cat_id] = title
+        except Exception:
+            mapping = {}
+        
+        category_names = {str(cat_id): mapping.get(str(cat_id), f"Category {cat_id}") 
                          for cat_id in sorted(categories)}
         return {"categories": category_names}
     except Exception as e:
@@ -134,6 +150,7 @@ async def get_trending_videos(
                     "newRoot": {
                         "$mergeObjects": [
                             "$top_videos",
+                            {"video_id": "$top_videos.video_id"},
                             {"country": "$country", "date": "$date", "processed_at": "$processed_at"}
                         ]
                     }

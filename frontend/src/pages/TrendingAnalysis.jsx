@@ -86,6 +86,20 @@ const TrendingAnalysis = () => {
     })
     .filter((item) => item.count > 0);
 
+  // Get category name from ID
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Unknown';
+  };
+
+  // Generate YouTube link from video ID
+  const getYouTubeLink = (video) => {
+    if (video.youtube_link) return video.youtube_link;
+    if (video.video_id) return `https://www.youtube.com/watch?v=${video.video_id}`;
+    if (video.id) return `https://www.youtube.com/watch?v=${video.id}`;
+    return null;
+  };
+
   const viewsData = videos.slice(0, 10).map((video) => ({
     title: video.title?.substring(0, 30) + "..." || "Untitled",
     views: video.views || 0,
@@ -389,13 +403,13 @@ const TrendingAnalysis = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {video.category_title || "Unknown"}
+                      {getCategoryName(video.category_id) || "Unknown"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {video.youtube_link ? (
+                    {getYouTubeLink(video) ? (
                       <a
-                        href={video.youtube_link}
+                        href={getYouTubeLink(video)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
