@@ -1,37 +1,35 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  TrendingUp, 
-  Eye, 
-  ThumbsUp, 
-  MessageCircle, 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  TrendingUp,
+  Eye,
+  ThumbsUp,
+  MessageCircle,
   Database,
   Activity,
-  Globe,
-  Calendar,
   RefreshCw,
   BarChart3,
   Brain,
   CheckCircle,
   AlertCircle,
-  HardDrive
-} from 'lucide-react';
-import { useApi } from '../context/ApiContext';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorMessage from '../components/ErrorMessage';
+  HardDrive,
+} from "lucide-react";
+import { useApi } from "../context/ApiContext";
+import LoadingSpinner from "../components/LoadingSpinner";
+import ErrorMessage from "../components/ErrorMessage";
 
 const Dashboard = () => {
-  const { 
-    fetchStatistics, 
-    fetchCountries, 
+  const {
+    fetchStatistics,
+    fetchCountries,
     fetchDatabaseStats,
     checkMLHealth,
-    loading, 
-    error 
+    loading,
+    error,
   } = useApi();
 
   const [statistics, setStatistics] = useState(null);
   const [countries, setCountries] = useState([]);
-  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState("");
   const [dbStats, setDbStats] = useState(null);
   const [mlHealth, setMlHealth] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -43,7 +41,7 @@ const Dashboard = () => {
         fetchStatistics(selectedCountry || null),
         fetchCountries(),
         fetchDatabaseStats(),
-        checkMLHealth()
+        checkMLHealth(),
       ]);
 
       setStatistics(statsData);
@@ -54,7 +52,13 @@ const Dashboard = () => {
     } catch (err) {
       // Error handled by ApiContext
     }
-  }, [selectedCountry, fetchStatistics, fetchCountries, fetchDatabaseStats, checkMLHealth]);
+  }, [
+    selectedCountry,
+    fetchStatistics,
+    fetchCountries,
+    fetchDatabaseStats,
+    checkMLHealth,
+  ]);
 
   useEffect(() => {
     loadDashboardData();
@@ -62,24 +66,22 @@ const Dashboard = () => {
 
   const formatNumber = (num) => {
     if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
+      return (num / 1000000).toFixed(1) + "M";
     } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
+      return (num / 1000).toFixed(1) + "K";
     }
-    return num?.toLocaleString() || '0';
+    return num?.toLocaleString() || "0";
   };
 
-  const StatCard = ({ title, value, icon: Icon, color = 'blue', subtitle }) => (
+  const StatCard = ({ title, value, icon: Icon, color = "blue", subtitle }) => (
     <div className="stat-card">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className={`text-2xl font-bold text-${color}-600`}>
-            {typeof value === 'number' ? formatNumber(value) : value || '0'}
+            {typeof value === "number" ? formatNumber(value) : value || "0"}
           </p>
-          {subtitle && (
-            <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
-          )}
+          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
         </div>
         <div className={`p-3 bg-${color}-100 rounded-lg`}>
           <Icon className={`w-6 h-6 text-${color}-600`} />
@@ -88,7 +90,13 @@ const Dashboard = () => {
     </div>
   );
 
-  const StatusCard = ({ title, status, icon: Icon, children, color = "blue" }) => (
+  const StatusCard = ({
+    title,
+    status,
+    icon: Icon,
+    children,
+    color = "blue",
+  }) => (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
@@ -134,17 +142,22 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Header */}
+      {/* Header with compact info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             Dashboard Analytics
           </h1>
-          <p className="mt-2 text-gray-600">
-            Tổng quan về dữ liệu YouTube Trending và hiệu suất mô hình ML
+          <p className="mt-1 text-sm text-gray-600">
+            {countries.length} quốc gia • Cập nhật:{" "}
+            {lastUpdated ? lastUpdated.toLocaleTimeString("vi-VN") : "Chưa có"}{" "}
+            • Max views:{" "}
+            {statistics?.statistics?.max_views
+              ? formatNumber(statistics.statistics.max_views)
+              : "0"}
           </p>
         </div>
-        
+
         <div className="mt-4 sm:mt-0 flex items-center space-x-4">
           {/* Country Filter */}
           <select
@@ -159,14 +172,14 @@ const Dashboard = () => {
               </option>
             ))}
           </select>
-          
+
           {/* Refresh Button */}
           <button
             onClick={loadDashboardData}
             disabled={loading}
             className="btn-secondary flex items-center space-x-2"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             <span>Làm mới</span>
           </button>
         </div>
@@ -182,7 +195,11 @@ const Dashboard = () => {
             value={statistics.statistics?.total_videos}
             icon={TrendingUp}
             color="blue"
-            subtitle={selectedCountry ? `Quốc gia: ${selectedCountry.toUpperCase()}` : 'Toàn cầu'}
+            subtitle={
+              selectedCountry
+                ? `Quốc gia: ${selectedCountry.toUpperCase()}`
+                : "Toàn cầu"
+            }
           />
           <StatCard
             title="Lượt xem trung bình"
@@ -338,7 +355,9 @@ const Dashboard = () => {
                 <span>Accuracy:</span>
                 <span className="font-medium">
                   {mlHealth?.metrics?.trending?.accuracy
-                    ? `${(mlHealth.metrics.trending.accuracy * 100).toFixed(1)}%`
+                    ? `${(mlHealth.metrics.trending.accuracy * 100).toFixed(
+                        1
+                      )}%`
                     : "N/A"}
                 </span>
               </div>
@@ -346,7 +365,9 @@ const Dashboard = () => {
                 <span>Precision:</span>
                 <span className="font-medium">
                   {mlHealth?.metrics?.trending?.precision
-                    ? `${(mlHealth.metrics.trending.precision * 100).toFixed(1)}%`
+                    ? `${(mlHealth.metrics.trending.precision * 100).toFixed(
+                        1
+                      )}%`
                     : "N/A"}
                 </span>
               </div>
@@ -394,7 +415,9 @@ const Dashboard = () => {
                 <span>R²:</span>
                 <span className="font-medium">
                   {mlHealth?.metrics?.regression?.r2_score
-                    ? `${(mlHealth.metrics.regression.r2_score * 100).toFixed(1)}%`
+                    ? `${(mlHealth.metrics.regression.r2_score * 100).toFixed(
+                        1
+                      )}%`
                     : "N/A"}
                 </span>
               </div>
@@ -441,34 +464,6 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card text-center">
-          <Globe className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900">Quốc gia</h3>
-          <p className="text-2xl font-bold text-blue-600">{countries.length}</p>
-          <p className="text-sm text-gray-500">Đang theo dõi</p>
-        </div>
-        
-        <div className="card text-center">
-          <Calendar className="w-8 h-8 text-green-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900">Cập nhật</h3>
-          <p className="text-sm font-medium text-green-600">
-            {lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN') : 'Chưa có'}
-          </p>
-          <p className="text-sm text-gray-500">Lần cuối</p>
-        </div>
-        
-        <div className="card text-center">
-          <TrendingUp className="w-8 h-8 text-purple-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900">Hiệu suất</h3>
-          <p className="text-2xl font-bold text-purple-600">
-            {statistics?.statistics?.max_views ? formatNumber(statistics.statistics.max_views) : '0'}
-          </p>
-          <p className="text-sm text-gray-500">Lượt xem cao nhất</p>
-        </div>
       </div>
     </div>
   );
