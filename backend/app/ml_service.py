@@ -96,8 +96,5 @@ def get_ml_service() -> MLService:
         _ml_service = MLService()
     return _ml_service
 
-def initialize_ml_service():
-    """Initialize ML service"""
-    global _ml_service
-    _ml_service = MLService()
-    return _ml_service
+# Backward compatibility alias
+initialize_ml_service = get_ml_service

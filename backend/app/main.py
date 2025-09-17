@@ -23,6 +23,7 @@ from backend.app.ml_service import get_ml_service, initialize_ml_service
 from backend.app.routes.trending_routes import router as trending_router
 from backend.app.routes.ml_routes import router as ml_router
 from backend.app.utils.response_utils import JSONEncoder
+from backend.app.services.health_service import health_service
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -62,13 +63,29 @@ async def startup_event():
     try:
         client.admin.command({'ping': 1})
         initialize_ml_service()
+        
+        # Register database health check
+        async def check_db_health():
+            try:
+                client.admin.command('ping')
+                return {"healthy": True, "message": "Database connected"}
+            except Exception as e:
+                return {"healthy": False, "error": str(e)}
+        
+        health_service.register_health_check("database", check_db_health)
+        logger.info("Application startup complete")
     except Exception as e:
-        pass
+        logger.error(f"Startup error: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
     client.close()
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint using centralized service"""
+    return await health_service.check_health()
 
 # Include routes
 app.include_router(trending_router, prefix="", tags=["trending"])

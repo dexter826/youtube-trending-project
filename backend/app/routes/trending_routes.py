@@ -11,37 +11,53 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Global variables
-CATEGORY_MAPPINGS = {}
-
 # Create router
 router = APIRouter()
 
 db = None
 
-def load_category_mappings():
-    """Load category mappings from JSON files"""
-    global CATEGORY_MAPPINGS
-    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data')
+class CategoryService:
+    """Service for managing category mappings with caching"""
+    _mappings = {}
+    _loaded = False
+    
+    @classmethod
+    def load_category_mappings(cls):
+        """Load category mappings from JSON files with caching"""
+        if cls._loaded:
+            return cls._mappings
+            
+        data_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data')
+        
+        for filename in os.listdir(data_dir):
+            if filename.endswith('_category_id.json'):
+                country = filename.split('_')[0].upper()
+                filepath = os.path.join(data_dir, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        mapping = {}
+                        for item in data.get('items', []):
+                            cat_id = str(item['id'])
+                            title = item['snippet']['title']
+                            mapping[cat_id] = title
+                        cls._mappings[country] = mapping
+                except Exception as e:
+                    logger.warning(f"Failed to load category mapping for {country}: {e}")
+                    continue
+        
+        cls._loaded = True
+        return cls._mappings
+    
+    @classmethod
+    def get_category_mapping(cls, country='US'):
+        """Get category mapping for specific country"""
+        if not cls._loaded:
+            cls.load_category_mappings()
+        return cls._mappings.get(country, {})
 
-    for filename in os.listdir(data_dir):
-        if filename.endswith('_category_id.json'):
-            country = filename.split('_')[0].upper()
-            filepath = os.path.join(data_dir, filename)
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    mapping = {}
-                    for item in data.get('items', []):
-                        cat_id = str(item['id'])  # Convert to string for consistent keys
-                        title = item['snippet']['title']
-                        mapping[cat_id] = title
-                    CATEGORY_MAPPINGS[country] = mapping
-            except Exception as e:
-                pass  # Skip invalid files
-
-# Load mappings on import
-load_category_mappings()
+# Initialize category service
+category_service = CategoryService()
 
 @router.get("/")
 async def root():
@@ -90,20 +106,8 @@ async def get_categories(country: Optional[str] = None):
         filter_query = {"country": country} if country else {}
         categories = list(router.db.trending_results.distinct("top_videos.category_id", filter_query))
         
-        # Load category mapping from file directly
-        data_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data')
-        filepath = os.path.join(data_dir, 'US_category_id.json')
-        
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                mapping = {}
-                for item in data.get('items', []):
-                    cat_id = str(item['id'])
-                    title = item['snippet']['title']
-                    mapping[cat_id] = title
-        except Exception:
-            mapping = {}
+        # Use cached category mapping
+        mapping = category_service.get_category_mapping('US')
         
         category_names = {str(cat_id): mapping.get(str(cat_id), f"Category {cat_id}") 
                          for cat_id in sorted(categories)}
