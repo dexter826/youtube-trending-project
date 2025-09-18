@@ -86,14 +86,13 @@ class MLService:
                 pass
 
     # New: Predict from YouTube URL via YouTube Data API v3
-    def predict_from_url(self, url: str, api_key: Optional[str] = None) -> Dict[str, Any]:
+    def predict_from_url(self, url: str) -> Dict[str, Any]:
         """Fetch video metadata from YouTube and run predictions (days + cluster)."""
         try:
-            # Prefer explicitly provided key; otherwise, fallback to environment
+            # Strictly use API key from environment
+            api_key = os.getenv("YOUTUBE_API_KEY")
             if not api_key:
-                api_key = os.getenv("YOUTUBE_API_KEY")
-            if not api_key:
-                raise HTTPException(status_code=400, detail="Missing api_key (and YOUTUBE_API_KEY not set)")
+                raise HTTPException(status_code=500, detail="YOUTUBE_API_KEY is not configured on the server")
 
             video_id = self._extract_video_id(url)
             if not video_id:

@@ -42,11 +42,11 @@ export const usePrediction = () => {
   };
 
   // New: Predict by YouTube URL (returns both days + cluster)
-  const handlePredictByUrl = async (url, apiKey) => {
+  const handlePredictByUrl = async (url) => {
     setPredictionLoading((prev) => ({ ...prev, all: true }));
     setPredictions({ days: null, cluster: null });
     try {
-      const data = await predictByUrl(url, apiKey);
+      const data = await predictByUrl(url);
       const days = data?.result?.prediction?.days || null;
       const cluster = data?.result?.prediction?.cluster || null;
       setPredictions({ days, cluster });

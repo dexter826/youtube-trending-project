@@ -109,10 +109,9 @@ export const ApiProvider = ({ children }) => {
     return apiCall('POST', '/ml/predict/cluster', videoData);
   }, [apiCall]);
 
-  // New: predict by YouTube URL
-  const predictByUrl = useCallback(async (url, api_key) => {
-    const payload = api_key ? { url, api_key } : { url };
-    return apiCall('POST', '/ml/predict/url', payload);
+  // New: predict by YouTube URL (backend uses YOUTUBE_API_KEY from server env)
+  const predictByUrl = useCallback(async (url) => {
+    return apiCall('POST', '/ml/predict/url', { url });
   }, [apiCall]);
 
   // Data processing

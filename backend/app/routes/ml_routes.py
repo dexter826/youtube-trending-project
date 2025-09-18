@@ -29,7 +29,6 @@ class VideoMLInput(BaseModel):
 
 class UrlInput(BaseModel):
     url: str
-    api_key: str | None = None
 
 @router.get("/health")
 async def health_check():
@@ -127,7 +126,7 @@ async def predict_from_url(payload: UrlInput):
         if not ml_service:
             raise HTTPException(status_code=500, detail="ML service not initialized")
 
-        result = ml_service.predict_from_url(payload.url, payload.api_key)
+        result = ml_service.predict_from_url(payload.url)
         return {
             "result": result,
             "timestamp": datetime.now().isoformat()
