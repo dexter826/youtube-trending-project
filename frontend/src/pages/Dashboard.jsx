@@ -12,51 +12,66 @@ import {
   AlertCircle,
   HardDrive,
 } from "lucide-react";
-import { useApi } from "../context/ApiContext";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
+import {
+  useStatistics,
+  useCountries,
+  useDatabaseStats,
+  useMlHealth,
+} from "../hooks/useApiQueries";
 
 const Dashboard = () => {
-  const {
-    fetchStatistics,
-    fetchCountries,
-    fetchDatabaseStats,
-    checkMLHealth,
-    loading,
-    error,
-  } = useApi();
-
-  const [statistics, setStatistics] = useState(null);
-  const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState("");
-  const [dbStats, setDbStats] = useState(null);
-  const [mlHealth, setMlHealth] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  const {
+    data: statistics,
+    isLoading: statisticsLoading,
+    error: statisticsError,
+    refetch: refetchStatistics,
+  } = useStatistics(selectedCountry);
+
+  const {
+    data: countries = [],
+    isLoading: countriesLoading,
+    error: countriesError,
+    refetch: refetchCountries,
+  } = useCountries();
+
+  const {
+    data: dbStats,
+    isLoading: dbStatsLoading,
+    error: dbStatsError,
+    refetch: refetchDatabaseStats,
+  } = useDatabaseStats();
+
+  const {
+    data: mlHealth,
+    isLoading: mlHealthLoading,
+    error: mlHealthError,
+    refetch: refetchMlHealth,
+  } = useMlHealth();
 
   const loadDashboardData = useCallback(async () => {
     try {
       // Load all dashboard data
-      const [statsData, countriesData, dbData, mlData] = await Promise.all([
-        fetchStatistics(selectedCountry || null),
-        fetchCountries(),
-        fetchDatabaseStats(),
-        checkMLHealth(),
+      await Promise.all([
+        refetchStatistics(),
+        refetchCountries(),
+        refetchDatabaseStats(),
+        refetchMlHealth(),
       ]);
 
-      setStatistics(statsData);
-      setCountries(countriesData.countries || []);
-      setDbStats(dbData);
-      setMlHealth(mlData);
       setLastUpdated(new Date());
     } catch (err) {
-      // Error handled by ApiContext
+      // Error handled by React Query
     }
   }, [
-    selectedCountry,
-    fetchStatistics,
-    fetchCountries,
-    fetchDatabaseStats,
-    checkMLHealth,
+    refetchStatistics,
+    refetchCountries,
+    refetchDatabaseStats,
+    refetchMlHealth,
   ]);
 
   useEffect(() => {
@@ -135,7 +150,18 @@ const Dashboard = () => {
     </div>
   );
 
-  if (loading && !statistics) {
+  // Check if any critical data is loading
+  const isInitialLoading = statisticsLoading && !statistics;
+
+  // Combined loading state for UI elements
+  const isAnyLoading =
+    statisticsLoading || countriesLoading || dbStatsLoading || mlHealthLoading;
+
+  // Combine all errors
+  const hasError =
+    statisticsError || countriesError || dbStatsError || mlHealthError;
+
+  if (isInitialLoading) {
     return <LoadingSpinner message="Đang tải dữ liệu dashboard..." />;
   }
 
@@ -175,16 +201,22 @@ const Dashboard = () => {
           {/* Refresh Button */}
           <button
             onClick={loadDashboardData}
-            disabled={loading}
+            disabled={isAnyLoading}
             className="btn-secondary flex items-center space-x-2"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-4 h-4 text-red-600 ${
+                isAnyLoading ? "animate-spin" : ""
+              }`}
+            />
             <span>Làm mới</span>
           </button>
         </div>
       </div>
 
-      {error && <ErrorMessage message={error} />}
+      {hasError && (
+        <ErrorMessage message="Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại." />
+      )}
 
       {/* Statistics Cards */}
       {statistics && (

@@ -55,12 +55,13 @@ const TrendingAnalysis = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [videosData, countriesData, categoriesData, datesData] = await Promise.all([
-        fetchTrendingVideos(filters),
-        fetchCountries(),
-        fetchCategories(filters.country || null),
-        fetchDates(filters.country || null),
-      ]);
+      const [videosData, countriesData, categoriesData, datesData] =
+        await Promise.all([
+          fetchTrendingVideos(filters),
+          fetchCountries(),
+          fetchCategories(filters.country || null),
+          fetchDates(filters.country || null),
+        ]);
 
       setVideos(videosData.videos || []);
       setCountries(countriesData.countries || []);
@@ -74,7 +75,13 @@ const TrendingAnalysis = () => {
     } catch (err) {
       // Error handled by ApiContext
     }
-  }, [filters, fetchTrendingVideos, fetchCountries, fetchCategories, fetchDates]);
+  }, [
+    filters,
+    fetchTrendingVideos,
+    fetchCountries,
+    fetchCategories,
+    fetchDates,
+  ]);
 
   // Debounce load when filters change
   useEffect(() => {
@@ -93,9 +100,14 @@ const TrendingAnalysis = () => {
 
   const handleFilterChange = (key, value) => {
     setPage(1);
-    if (key === 'country') {
+    if (key === "country") {
       // Reset dependent filters so new lists (dates/categories) are fetched and re-selected
-      setFilters((prev) => ({ ...prev, country: value, category: '', date: '' }));
+      setFilters((prev) => ({
+        ...prev,
+        country: value,
+        category: "",
+        date: "",
+      }));
     } else {
       setFilters((prev) => ({ ...prev, [key]: value }));
     }
@@ -133,7 +145,8 @@ const TrendingAnalysis = () => {
     const views = v.views || 0;
     const likes = v.likes || 0;
     const comments = v.comment_count || 0;
-    if (!acc[ch]) acc[ch] = { channel: ch, count: 0, viewsSum: 0, engSum: 0, engDen: 0 };
+    if (!acc[ch])
+      acc[ch] = { channel: ch, count: 0, viewsSum: 0, engSum: 0, engDen: 0 };
     acc[ch].count += 1;
     acc[ch].viewsSum += views;
     if (views > 0) {
@@ -160,7 +173,10 @@ const TrendingAnalysis = () => {
   // Scatter data: Views vs Engagement (size by comments), limited to top 100 videos by views (as provided order)
   const scatterRaw = videos.slice(0, 100).map((v) => ({
     x: v.views || 0,
-    y: (v.views || 0) > 0 ? ((v.likes || 0) + (v.comment_count || 0)) / (v.views || 1) : 0,
+    y:
+      (v.views || 0) > 0
+        ? ((v.likes || 0) + (v.comment_count || 0)) / (v.views || 1)
+        : 0,
     z: Math.max(10, Math.min(300, v.comment_count || 0)),
     title: v.title || "Untitled",
     channel: v.channel_title || "Unknown Channel",
@@ -183,22 +199,26 @@ const TrendingAnalysis = () => {
   const scatterGroups = Object.entries(scatterGroupsMap)
     .sort((a, b) => b[1].length - a[1].length)
     .slice(0, 7) // limit number of legend entries/colors
-    .map(([name, data], idx) => ({ name, data, color: COLORS[idx % COLORS.length] }));
+    .map(([name, data], idx) => ({
+      name,
+      data,
+      color: COLORS[idx % COLORS.length],
+    }));
 
   // Get category name from ID
   const getCategoryName = (categoryId) => {
-    const category = categories.find(cat => cat.id === categoryId);
-    return category ? category.name : 'Unknown';
+    const category = categories.find((cat) => cat.id === categoryId);
+    return category ? category.name : "Unknown";
   };
 
   // Generate YouTube link from video ID
   const getYouTubeLink = (video) => {
     if (video.youtube_link) return video.youtube_link;
-    if (video.video_id) return `https://www.youtube.com/watch?v=${video.video_id}`;
+    if (video.video_id)
+      return `https://www.youtube.com/watch?v=${video.video_id}`;
     if (video.id) return `https://www.youtube.com/watch?v=${video.id}`;
     return null;
   };
-
 
   const formatNumber = (num) => {
     if (num >= 1000000) {
@@ -235,10 +255,21 @@ const TrendingAnalysis = () => {
         </div>
         {/* Summary badges */}
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Ngày: <span className="font-medium">{filters.date || (dates[0] || 'Mới nhất')}</span></span>
-          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Sắp xếp: <span className="font-medium">{filters.sortBy}</span></span>
-          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Thứ tự: <span className="font-medium">{filters.order}</span></span>
-          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">Kết quả: <span className="font-medium">{videos.length}</span></span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+            Ngày:{" "}
+            <span className="font-medium">
+              {filters.date || dates[0] || "Mới nhất"}
+            </span>
+          </span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+            Sắp xếp: <span className="font-medium">{filters.sortBy}</span>
+          </span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+            Thứ tự: <span className="font-medium">{filters.order}</span>
+          </span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+            Kết quả: <span className="font-medium">{videos.length}</span>
+          </span>
         </div>
       </div>
 
@@ -300,7 +331,9 @@ const TrendingAnalysis = () => {
             >
               <option value="">Mới nhất</option>
               {dates.map((d) => (
-                <option key={d} value={d}>{d}</option>
+                <option key={d} value={d}>
+                  {d}
+                </option>
               ))}
             </select>
           </div>
@@ -346,19 +379,27 @@ const TrendingAnalysis = () => {
         <div className="stat-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Tỷ lệ tương tác TB</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-sm font-medium text-gray-600">
+                Tỷ lệ tương tác TB
+              </p>
+              <p className="text-2xl font-bold text-red-600">
                 {formatPercent(
                   (() => {
-                    const valid = videos.filter(v => (v.views || 0) > 0);
+                    const valid = videos.filter((v) => (v.views || 0) > 0);
                     if (valid.length === 0) return 0;
-                    const sum = valid.reduce((acc, v) => acc + ((v.likes || 0) + (v.comment_count || 0)) / (v.views || 1), 0);
+                    const sum = valid.reduce(
+                      (acc, v) =>
+                        acc +
+                        ((v.likes || 0) + (v.comment_count || 0)) /
+                          (v.views || 1),
+                      0
+                    );
                     return sum / valid.length;
                   })()
                 )}
               </p>
             </div>
-            <TrendingUp className="w-8 h-8 text-blue-600" />
+            <TrendingUp className="w-8 h-8 text-red-600" />
           </div>
         </div>
 
@@ -432,7 +473,10 @@ const TrendingAnalysis = () => {
                     dataKey="count"
                   >
                     {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -442,21 +486,32 @@ const TrendingAnalysis = () => {
                 {categoryData.map((c, idx) => (
                   <button
                     key={c.id}
-                    onClick={() => handleFilterChange('category', String(c.id))}
-                    className={`flex items-center justify-between px-3 py-2 rounded-md border transition ${String(filters.category) === String(c.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                    onClick={() => handleFilterChange("category", String(c.id))}
+                    className={`flex items-center justify-between px-3 py-2 rounded-md border transition ${
+                      String(filters.category) === String(c.id)
+                        ? "bg-red-50 border-red-200"
+                        : "bg-white border-gray-200 hover:bg-gray-50"
+                    }`}
                   >
                     <div className="flex items-center">
-                      <span className="w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      <span
+                        className="w-3 h-3 rounded-sm mr-2"
+                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                      />
                       <span className="text-sm text-gray-800">{c.name}</span>
                     </div>
-                    <span className="text-sm text-gray-500">{c.count} • {c.percentage}%</span>
+                    <span className="text-sm text-gray-500">
+                      {c.count} • {c.percentage}%
+                    </span>
                   </button>
                 ))}
                 {filters.category && (
                   <button
-                    onClick={() => handleFilterChange('category', '')}
+                    onClick={() => handleFilterChange("category", "")}
                     className="px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-sm text-gray-700"
-                  >Bỏ lọc danh mục</button>
+                  >
+                    Bỏ lọc danh mục
+                  </button>
                 )}
               </div>
             </>
@@ -472,13 +527,25 @@ const TrendingAnalysis = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
             Kênh xuất hiện nhiều trong Trending
           </h3>
-          <p className="text-sm text-gray-500 mb-4">Hiển thị số video trending theo kênh. Tooltip có Engagement TB và Views TB.</p>
+          <p className="text-sm text-gray-500 mb-4">
+            Hiển thị số video trending theo kênh. Tooltip có Engagement TB và
+            Views TB.
+          </p>
           {channelStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={topChannelsHeight}>
-              <BarChart data={channelStats} layout="horizontal" margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
+              <BarChart
+                data={channelStats}
+                layout="horizontal"
+                margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={formatNumber} />
-                <YAxis dataKey="channel" type="category" width={180} interval={0} />
+                <YAxis
+                  dataKey="channel"
+                  type="category"
+                  width={180}
+                  interval={0}
+                />
                 <Tooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
@@ -486,9 +553,22 @@ const TrendingAnalysis = () => {
                       return (
                         <div className="p-3 bg-white rounded-md shadow text-sm">
                           <div className="font-semibold mb-1">{d.channel}</div>
-                          <div>Số video: <span className="font-medium">{d.count}</span></div>
-                          <div>Views TB: <span className="font-medium">{formatNumber(Math.round(d.avgViews))}</span></div>
-                          <div>Engagement TB: <span className="font-medium">{formatPercent(d.avgEng)}</span></div>
+                          <div>
+                            Số video:{" "}
+                            <span className="font-medium">{d.count}</span>
+                          </div>
+                          <div>
+                            Views TB:{" "}
+                            <span className="font-medium">
+                              {formatNumber(Math.round(d.avgViews))}
+                            </span>
+                          </div>
+                          <div>
+                            Engagement TB:{" "}
+                            <span className="font-medium">
+                              {formatPercent(d.avgEng)}
+                            </span>
+                          </div>
                         </div>
                       );
                     }
@@ -499,39 +579,72 @@ const TrendingAnalysis = () => {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">Không có dữ liệu</div>
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              Không có dữ liệu
+            </div>
           )}
         </div>
       </div>
 
       {/* Scatter: Views vs Engagement (size by Comments) */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Views vs Engagement (Scatter)</h3>
-        <p className="text-sm text-gray-500 mb-4">Màu theo danh mục, kích thước theo số bình luận. Tối đa 100 video.</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          Views vs Engagement (Scatter)
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Màu theo danh mục, kích thước theo số bình luận. Tối đa 100 video.
+        </p>
         {scatterGroups.length > 0 ? (
           <ResponsiveContainer width="100%" height={380}>
             <ScatterChart margin={{ left: 24, right: 24, top: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" dataKey="x" name="Views" tickFormatter={formatNumber} />
-              <YAxis type="number" dataKey="y" name="Engagement" tickFormatter={formatPercent} />
-              <ZAxis type="number" dataKey="z" range={[40, 200]} name="Comments" />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }}
+              <XAxis
+                type="number"
+                dataKey="x"
+                name="Views"
+                tickFormatter={formatNumber}
+              />
+              <YAxis
+                type="number"
+                dataKey="y"
+                name="Engagement"
+                tickFormatter={formatPercent}
+              />
+              <ZAxis
+                type="number"
+                dataKey="z"
+                range={[40, 200]}
+                name="Comments"
+              />
+              <Tooltip
+                cursor={{ strokeDasharray: "3 3" }}
                 formatter={(value, name) => {
-                  if (name === 'x') return [formatNumber(value), 'Views'];
-                  if (name === 'y') return [formatPercent(value), 'Engagement'];
-                  if (name === 'z') return [formatNumber(value), 'Comments'];
+                  if (name === "x") return [formatNumber(value), "Views"];
+                  if (name === "y") return [formatPercent(value), "Engagement"];
+                  if (name === "z") return [formatNumber(value), "Comments"];
                   return [value, name];
                 }}
-                labelFormatter={(label, payload) => (payload && payload[0] && payload[0].payload ? payload[0].payload.title : '')}
+                labelFormatter={(label, payload) =>
+                  payload && payload[0] && payload[0].payload
+                    ? payload[0].payload.title
+                    : ""
+                }
               />
               <Legend />
               {scatterGroups.map((g, idx) => (
-                <Scatter key={g.name} name={g.name} data={g.data} fill={g.color} />
+                <Scatter
+                  key={g.name}
+                  name={g.name}
+                  data={g.data}
+                  fill={g.color}
+                />
               ))}
             </ScatterChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-64 text-gray-500">Không có dữ liệu</div>
+          <div className="flex items-center justify-center h-64 text-gray-500">
+            Không có dữ liệu
+          </div>
         )}
       </div>
 
@@ -597,7 +710,7 @@ const TrendingAnalysis = () => {
                     {formatPercent(calcEngagement(video))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                       {getCategoryName(video.category_id) || "Unknown"}
                     </span>
                   </td>
@@ -607,7 +720,7 @@ const TrendingAnalysis = () => {
                         href={getYouTubeLink(video)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                        className="inline-flex items-center px-3 py-1 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
                       >
                         <Play className="w-4 h-4 mr-1" />
                         Xem
@@ -624,18 +737,24 @@ const TrendingAnalysis = () => {
 
         {/* Pagination */}
         <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-gray-600">Trang {page} / {totalPages}</div>
+          <div className="text-sm text-gray-600">
+            Trang {page} / {totalPages}
+          </div>
           <div className="space-x-2">
             <button
               className="px-3 py-1 rounded-md border border-gray-300 text-sm disabled:opacity-50"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >Trước</button>
+            >
+              Trước
+            </button>
             <button
               className="px-3 py-1 rounded-md border border-gray-300 text-sm disabled:opacity-50"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >Sau</button>
+            >
+              Sau
+            </button>
           </div>
         </div>
       </div>

@@ -1,18 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 
-import { usePrediction } from "../hooks/usePrediction";
-import { useModelData } from "../hooks/useModelData";
+import { useMlHealth } from "../hooks/useApiQueries";
+import {
+  usePredictionMutation,
+  usePrediction as useCachedPrediction,
+} from "../hooks/useApiQueries";
 import PredictionForm from "../components/prediction/PredictionForm";
 import PredictionResults from "../components/prediction/PredictionResults";
 import ModelSelector from "../components/prediction/ModelSelector";
 import ErrorMessage from "../components/ErrorMessage";
-import { useApi } from "../context/ApiContext";
 
 const PredictionPage = () => {
-  const { error } = useApi();
-  const { mlHealth } = useModelData();
-  const { predictions, predictionLoading, videoMetadata, handlePredictByUrl } =
-    usePrediction();
+  const [currentUrl, setCurrentUrl] = useState("");
+  const { data: mlHealth, error: mlHealthError } = useMlHealth();
+  const predictionMutation = usePredictionMutation();
+  const { data: cachedPrediction } = useCachedPrediction(currentUrl);
+
+  // Use cached prediction if available, otherwise use mutation result
+  const predictions = cachedPrediction || predictionMutation.data;
+  const predictionLoading = predictionMutation.isPending;
+  const videoMetadata = predictions?.result?.input_video;
+
+  const handlePredictByUrl = async (url) => {
+    setCurrentUrl(url);
+    await predictionMutation.mutateAsync(url);
+  };
+
+  const hasError = mlHealthError || predictionMutation.error;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -28,7 +42,7 @@ const PredictionPage = () => {
         </div>
       </div>
 
-      {error && <ErrorMessage message={error} />}
+      {hasError && <ErrorMessage message={hasError.message} />}
 
       {/* ML Health Status */}
       <ModelSelector mlHealth={mlHealth} />
@@ -37,7 +51,7 @@ const PredictionPage = () => {
         {/* URL-based Input Form */}
         <PredictionForm
           onPredictByUrl={(url) => handlePredictByUrl(url)}
-          loading={predictionLoading.all}
+          loading={predictionLoading}
           mlHealth={mlHealth}
           videoMetadata={videoMetadata}
         />

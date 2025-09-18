@@ -133,24 +133,28 @@ const PredictionCard = ({
 // No number formatting needed currently
 
 const PredictionResults = ({ predictions, predictionLoading }) => {
+  // Extract prediction data from the response structure
+  const daysPrediction = predictions?.result?.prediction?.days;
+  const clusterPrediction = predictions?.result?.prediction?.cluster;
+
   return (
     <div className="space-y-6">
       <PredictionCard
         title="Dự đoán Số ngày Trending"
         icon={TrendingUp}
-        result={predictions.days}
+        result={daysPrediction}
         color="blue"
         type="days"
-        loading={predictionLoading.days}
+        loading={predictionLoading}
       />
 
       <PredictionCard
         title="Phân cụm Nội dung"
         icon={Target}
-        result={predictions.cluster}
+        result={clusterPrediction}
         color="purple"
         type="cluster"
-        loading={predictionLoading.cluster}
+        loading={predictionLoading}
       />
     </div>
   );

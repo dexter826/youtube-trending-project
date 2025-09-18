@@ -44,7 +44,7 @@ const PredictionForm = ({
     <div className="space-y-6">
       <div className="card">
         <div className="flex items-center space-x-2 mb-6">
-          <Play className="w-5 h-5 text-blue-600" />
+          <Play className="w-5 h-5 text-red-600" />
           <h3 className="text-lg font-semibold text-gray-900">
             Dự đoán từ YouTube URL
           </h3>
@@ -72,7 +72,7 @@ const PredictionForm = ({
           >
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 text-white animate-spin" />
                 <span>Đang dự đoán...</span>
               </>
             ) : (
