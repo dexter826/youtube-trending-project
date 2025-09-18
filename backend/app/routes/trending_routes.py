@@ -160,7 +160,7 @@ async def get_trending_videos(
         match_stage = {}
         if country:
             match_stage["country"] = country
-        if date:
+        if date and date.strip():  # Only filter by date if it's not empty/whitespace
             # Support both 'date' and legacy 'trending_date' fields
             pipeline.append({
                 "$match": {

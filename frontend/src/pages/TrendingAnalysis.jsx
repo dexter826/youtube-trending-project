@@ -48,7 +48,7 @@ const TrendingAnalysis = () => {
   const [filters, setFilters] = useState({
     country: "",
     category: "",
-    date: "",
+    date: undefined,
     sortBy: "views",
     order: "desc",
   });
@@ -91,10 +91,10 @@ const TrendingAnalysis = () => {
     return () => clearTimeout(t);
   }, [loadData]);
 
-  // Auto-select latest date when dates loaded and no date selected
+  // Auto-select "Tất cả ngày" when dates loaded and no date selected
   useEffect(() => {
-    if (!filters.date && dates && dates.length > 0) {
-      setFilters((prev) => ({ ...prev, date: dates[0] }));
+    if (filters.date === undefined && dates && dates.length > 0) {
+      setFilters((prev) => ({ ...prev, date: "" })); // Default to "Tất cả ngày"
     }
   }, [dates, filters.date]);
 
@@ -258,7 +258,7 @@ const TrendingAnalysis = () => {
           <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
             Ngày:{" "}
             <span className="font-medium">
-              {filters.date || dates[0] || "Mới nhất"}
+              {filters.date === "" ? "Tất cả ngày" : (filters.date || "Tất cả ngày")}
             </span>
           </span>
           <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
@@ -329,7 +329,7 @@ const TrendingAnalysis = () => {
               onChange={(e) => handleFilterChange("date", e.target.value)}
               className="input-field"
             >
-              <option value="">Mới nhất</option>
+              <option value="">Tất cả ngày</option>
               {dates.map((d) => (
                 <option key={d} value={d}>
                   {d}
