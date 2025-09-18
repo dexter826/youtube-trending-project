@@ -10,16 +10,6 @@ const PredictionForm = ({
   const [url, setUrl] = useState("");
   const [predictedUrl, setPredictedUrl] = useState("");
 
-  const formatNumber = (num) => {
-    if (!num && num !== 0) return "N/A";
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + "M";
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + "K";
-    }
-    return num.toLocaleString();
-  };
-
   const isValid = () =>
     url.trim().length > 0 && (mlHealth?.is_trained ?? false);
 
@@ -84,12 +74,12 @@ const PredictionForm = ({
           </button>
         </form>
 
-        {/* Video Metadata Display */}
+        {/* Video Information Display */}
         {videoMetadata && url.trim() === predictedUrl && (
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
               <Play className="w-5 h-5 text-green-600" />
-              <span>Metadata Video</span>
+              <span>Thông tin Video</span>
             </h4>
 
             <div className="overflow-x-auto">
@@ -107,49 +97,73 @@ const PredictionForm = ({
                 <tbody>
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                      ID Video
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.id}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Tiêu đề
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
                       {videoMetadata.title}
                     </td>
                   </tr>
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Video ID
+                      Mô tả
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900 font-mono">
-                      {videoMetadata.id}
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.description || "N/A"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                      Kênh
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.channel_title || "N/A"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                      Thời lượng
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.duration || "N/A"}
                     </td>
                   </tr>
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Lượt xem
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
-                      {formatNumber(videoMetadata.views)}
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.views?.toLocaleString()}
                     </td>
                   </tr>
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Lượt thích
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
-                      {formatNumber(videoMetadata.likes)}
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.likes?.toLocaleString()}
                     </td>
                   </tr>
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Bình luận
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
-                      {formatNumber(videoMetadata.comment_count)}
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.comment_count?.toLocaleString()}
                     </td>
                   </tr>
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Category ID
+                      ID danh mục
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
                       {videoMetadata.category_id}
                     </td>
                   </tr>
@@ -157,16 +171,32 @@ const PredictionForm = ({
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Giờ đăng
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
-                      {videoMetadata.publish_hour}:00
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.publish_hour}
                     </td>
                   </tr>
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                      Tuổi video (proxy)
+                      Độ tuổi video
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-900">
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
                       {videoMetadata.video_age_proxy}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                      Độ dài mô tả
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.description_length}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                      Có thẻ tag
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {videoMetadata.has_tags ? "Có" : "Không"}
                     </td>
                   </tr>
                 </tbody>

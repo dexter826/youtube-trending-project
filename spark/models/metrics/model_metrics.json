@@ -1,11 +1,10 @@
 {
   "clustering": {
-    "silhouette_score": 0.3401191105195578,
+    "silhouette_score": 0.32729960130280306,
     "num_clusters": 3,
     "features_used": [
       "log_views",
       "log_likes",
-      "log_dislikes",
       "log_comments",
       "like_ratio",
       "engagement_score",
@@ -13,18 +12,19 @@
       "tag_count",
       "category_id",
       "publish_hour",
-      "video_age_proxy"
+      "video_age_proxy",
+      "title_tfidf",
+      "desc_tfidf"
     ]
   },
   "regression": {
-    "rmse": 1.685969828868527,
-    "mae": 0.6321558963243549,
-    "r2_score": 0.7276903637417071,
+    "rmse": 1.6478971956256085,
+    "mae": 0.6263122631233631,
+    "r2_score": 0.7373066679779486,
     "label": "days_in_trending",
     "features_used": [
       "views",
       "likes",
-      "dislikes",
       "comment_count",
       "like_ratio",
       "engagement_score",
@@ -32,9 +32,11 @@
       "tag_count",
       "category_id",
       "publish_hour",
-      "video_age_proxy"
+      "video_age_proxy",
+      "title_tfidf",
+      "desc_tfidf"
     ]
   },
-  "training_timestamp": "2025-09-18T10:55:42.154602",
+  "training_timestamp": "2025-09-18T19:22:13.678321",
   "dataset_size": 375940
 }

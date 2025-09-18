@@ -2,11 +2,14 @@
 Machine Learning Routes for YouTube Analytics API
 """
 
-from fastapi import HTTPException, APIRouter
-from datetime import datetime
-from typing import Dict, Any
-from pydantic import BaseModel
 import logging
+from datetime import datetime
+from typing import Any, Dict
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from backend.app.models.request_models import VideoMLInput
 
 logger = logging.getLogger(__name__)
 
@@ -16,19 +19,25 @@ router = APIRouter()
 db = None
 get_ml_service = None
 
-class VideoMLInput(BaseModel):
-    title: str
-    views: int = 0
-    likes: int = 0
-    dislikes: int = 0
-    comment_count: int = 0
-    category_id: int = 0
-    tags: str = ""
-    publish_hour: int = 12
-    video_age_proxy: int = 2
-
 class UrlInput(BaseModel):
     url: str
+
+def _get_ml_service():
+    """Helper to get and validate ML service"""
+    if router.get_ml_service is None:
+        raise HTTPException(status_code=500, detail="ML service not initialized")
+    ml_service = router.get_ml_service()
+    if not ml_service:
+        raise HTTPException(status_code=500, detail="ML service not available")
+    return ml_service
+
+def _format_prediction_response(result: Any, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper to format prediction response"""
+    return {
+        "prediction": result,
+        "input_data": input_data,
+        "timestamp": datetime.now().isoformat()
+    }
 
 @router.get("/health")
 async def health_check():
@@ -38,16 +47,14 @@ async def health_check():
             raise HTTPException(status_code=500, detail="Database connection not initialized")
         if router.get_ml_service is None:
             raise HTTPException(status_code=500, detail="ML service not initialized")
-        
+
         router.db.client.admin.command('ping')
-        
-        ml_service = router.get_ml_service()
-        if ml_service is None:
-            raise HTTPException(status_code=500, detail="ML service not available")
-        
+
+        ml_service = _get_ml_service()
+
         # Get comprehensive model info from evaluator
         return ml_service.get_model_info()
-        
+
     except Exception as e:
         # Return error response but still include basic structure
         return {
@@ -67,13 +74,7 @@ async def health_check():
 async def train_ml_models():
     """Train ML models"""
     try:
-        if router.get_ml_service is None:
-            raise HTTPException(status_code=500, detail="ML service not initialized")
-            
-        ml_service = router.get_ml_service()
-        if ml_service is None:
-            raise HTTPException(status_code=500, detail="ML service not available")
-        
+        ml_service = _get_ml_service()
         return await ml_service.train_models()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to train ML models: {str(e)}")
@@ -82,50 +83,29 @@ async def train_ml_models():
 async def predict_days(video_data: VideoMLInput):
     """Predict number of days a video may stay on trending"""
     try:
-        ml_service = router.get_ml_service()
-        if not ml_service:
-            raise HTTPException(status_code=500, detail="ML service not initialized")
-
+        ml_service = _get_ml_service()
         video_dict = video_data.dict()
         result = ml_service.predict_days(video_dict)
-
-        return {
-            "prediction": result,
-            "input_data": video_dict,
-            "timestamp": datetime.now().isoformat()
-        }
+        return _format_prediction_response(result, video_dict)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Days prediction failed: {str(e)}")
-
 
 @router.post("/predict/cluster")
 async def predict_cluster(video_data: VideoMLInput):
     """Predict content cluster for a video"""
     try:
-        ml_service = router.get_ml_service()
-        if not ml_service:
-            raise HTTPException(status_code=500, detail="ML service not initialized")
-
+        ml_service = _get_ml_service()
         video_dict = video_data.dict()
         result = ml_service.predict_cluster(video_dict)
-
-        return {
-            "prediction": result,
-            "input_data": video_dict,
-            "timestamp": datetime.now().isoformat()
-        }
+        return _format_prediction_response(result, video_dict)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Clustering failed: {str(e)}")
-
 
 @router.post("/predict/url")
 async def predict_from_url(payload: UrlInput):
     """Predict using a YouTube URL. Returns combined days + cluster predictions."""
     try:
-        ml_service = router.get_ml_service()
-        if not ml_service:
-            raise HTTPException(status_code=500, detail="ML service not initialized")
-
+        ml_service = _get_ml_service()
         result = ml_service.predict_from_url(payload.url)
         return {
             "result": result,

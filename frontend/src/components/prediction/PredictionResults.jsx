@@ -130,8 +130,6 @@ const PredictionCard = ({
   </div>
 );
 
-// No number formatting needed currently
-
 const PredictionResults = ({ predictions, predictionLoading }) => {
   // Extract prediction data from the response structure
   const daysPrediction = predictions?.result?.prediction?.days;

@@ -2,16 +2,16 @@
 FastAPI Backend for YouTube Trending Analytics
 """
 
-from fastapi import FastAPI
-
-from fastapi.middleware.cors import CORSMiddleware
-from pymongo import MongoClient
-from datetime import datetime
+import logging
 import os
 import sys
-import logging
+from datetime import datetime
 from pathlib import Path
+
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pymongo import MongoClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,10 +25,10 @@ sys.path.insert(0, str(project_root))
 load_dotenv(dotenv_path=project_root / ".env")
 
 from backend.app.ml_service import get_ml_service, initialize_ml_service
-from backend.app.routes.trending_routes import router as trending_router
 from backend.app.routes.ml_routes import router as ml_router
-from backend.app.utils.response_utils import JSONEncoder
+from backend.app.routes.trending_routes import router as trending_router
 from backend.app.services.health_service import health_service
+from backend.app.utils.response_utils import JSONEncoder
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -62,6 +62,14 @@ trending_router.db = db
 ml_router.db = db
 ml_router.get_ml_service = get_ml_service
 
+async def check_db_health():
+    """Check database health"""
+    try:
+        client.admin.command('ping')
+        return {"healthy": True, "message": "Database connected"}
+    except Exception as e:
+        return {"healthy": False, "error": str(e)}
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
@@ -70,13 +78,6 @@ async def startup_event():
         initialize_ml_service()
         
         # Register database health check
-        async def check_db_health():
-            try:
-                client.admin.command('ping')
-                return {"healthy": True, "message": "Database connected"}
-            except Exception as e:
-                return {"healthy": False, "error": str(e)}
-        
         health_service.register_health_check("database", check_db_health)
         logger.info("Application startup complete")
     except Exception as e:

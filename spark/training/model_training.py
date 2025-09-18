@@ -14,7 +14,10 @@ class ModelTraining:
 
     def train_days_regression_model(self, data, feature_cols):
         """Train Random Forest Regressor to predict days_in_trending"""
-        assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+        # Filter out NLP features if present
+        numerical_features = [col for col in feature_cols if not col.endswith('_tfidf')]
+        
+        assembler = VectorAssembler(inputCols=numerical_features, outputCol="features")
         scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
         rf_regressor = RandomForestRegressor(
             featuresCol="scaledFeatures",
@@ -36,7 +39,10 @@ class ModelTraining:
 
     def train_clustering_model(self, data, feature_cols):
         """Train clustering model using K-Means"""
-        assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+        # Filter out NLP features if present
+        numerical_features = [col for col in feature_cols if not col.endswith('_tfidf')]
+        
+        assembler = VectorAssembler(inputCols=numerical_features, outputCol="features")
         scaler = StandardScaler(inputCol="features", outputCol="scaledFeatures")
         kmeans = KMeans(
             featuresCol="scaledFeatures",

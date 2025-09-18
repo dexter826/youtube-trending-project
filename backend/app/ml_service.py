@@ -2,26 +2,26 @@
 Machine Learning Service - Refactored to use modular services
 """
 
-from typing import Dict, Any, Optional
-from fastapi import HTTPException
 import os
 import sys
-from pathlib import Path
-import requests
-from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Optional
+from urllib.parse import parse_qs, urlparse
+
+import requests
+from fastapi import HTTPException
 
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from spark.core.spark_manager import get_spark_session, PRODUCTION_CONFIGS
-from spark.core.database_manager import get_database_connection
-
-from backend.app.services.model_loader import ModelLoader
 from backend.app.services.feature_processor import FeatureProcessor
-from backend.app.services.predictor import Predictor
 from backend.app.services.model_evaluator import ModelEvaluator
+from backend.app.services.model_loader import ModelLoader
+from backend.app.services.predictor import Predictor
+from spark.core.database_manager import get_database_connection
+from spark.core.spark_manager import PRODUCTION_CONFIGS, get_spark_session
 
 
 class MLService:
@@ -37,7 +37,7 @@ class MLService:
         self.feature_processor = FeatureProcessor(self.spark)
         self.predictor = Predictor(self.model_loader, self.feature_processor)
         self.evaluator = ModelEvaluator(self.model_loader, self.db)
-        
+
         # Set log level to reduce noise
         self.spark.sparkContext.setLogLevel("ERROR")
 
@@ -120,18 +120,15 @@ class MLService:
             tags = "|".join(tags_list)
             category_id = int(snippet.get("categoryId", 0) or 0)
             published_at = snippet.get("publishedAt")
+            description = snippet.get("description", "")
+            channel_title = snippet.get("channelTitle", "")
+            content_details = item.get("contentDetails", {})
+            duration = content_details.get("duration", "")
 
             # Stats
-            def to_int(x):
-                try:
-                    return int(x)
-                except Exception:
-                    return 0
-
-            views = to_int(statistics.get("viewCount", 0))
-            likes = to_int(statistics.get("likeCount", 0))  # May be hidden; default 0
-            dislikes = 0  # Not available via API
-            comment_count = to_int(statistics.get("commentCount", 0))
+            views = int(statistics.get("viewCount", 0)) if statistics.get("viewCount") else 0
+            likes = int(statistics.get("likeCount", 0)) if statistics.get("likeCount") else 0  # May be hidden; default 0
+            comment_count = int(statistics.get("commentCount", 0)) if statistics.get("commentCount") else 0
 
             # Time features
             publish_hour = 12
@@ -157,12 +154,16 @@ class MLService:
                 "title": title,
                 "views": views,
                 "likes": likes,
-                "dislikes": dislikes,
                 "comment_count": comment_count,
                 "category_id": category_id,
                 "tags": tags,
                 "publish_hour": publish_hour,
                 "video_age_proxy": video_age_proxy,
+                "description": description,
+                "channel_title": channel_title,
+                "duration": duration,
+                "description_length": len(description),
+                "has_tags": 1 if tags_list else 0,
             }
 
             days_pred = self.predictor.predict_days(video_data)
@@ -178,6 +179,11 @@ class MLService:
                     "views": views,
                     "likes": likes,
                     "comment_count": comment_count,
+                    "description": description,
+                    "channel_title": channel_title,
+                    "duration": duration,
+                    "description_length": len(description),
+                    "has_tags": bool(tags_list),
                 },
                 "prediction": {
                     "days": days_pred,

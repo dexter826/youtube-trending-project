@@ -2,18 +2,25 @@
 Pydantic models for API requests and responses
 """
 
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel
+
 
 class VideoMLInput(BaseModel):
     title: str
     views: int = 0
     likes: int = 0
-    dislikes: int = 0
     comment_count: int = 0
     category_id: int = 0
     tags: str = ""
+    description: str = ""
+    channel_title: str = ""
+    duration: str = ""
+    publish_hour: int = 12
+    video_age_proxy: int = 2
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -21,16 +28,19 @@ class HealthResponse(BaseModel):
     ml_service: Optional[str] = None
     timestamp: str
 
+
 class PredictionResponse(BaseModel):
     prediction: Any
     input_data: Dict[str, Any]
     timestamp: str
+
 
 class TrainingResponse(BaseModel):
     status: str
     message: str
     training_data_count: int
     models: list
+
 
 class DatabaseStatsResponse(BaseModel):
     collections: Dict[str, int]
