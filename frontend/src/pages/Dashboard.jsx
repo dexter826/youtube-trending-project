@@ -5,7 +5,6 @@ import {
   ThumbsUp,
   MessageCircle,
   Database,
-  Activity,
   RefreshCw,
   BarChart3,
   Brain,
@@ -343,57 +342,15 @@ const Dashboard = () => {
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-            <TrendingUp className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-            <h4 className="text-lg font-semibold text-gray-900">
-              Trending Classifier
-            </h4>
-            <p className="text-sm text-gray-600 mb-2">Dự đoán video trending</p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span>Accuracy:</span>
-                <span className="font-medium">
-                  {mlHealth?.metrics?.trending?.accuracy
-                    ? `${(mlHealth.metrics.trending.accuracy * 100).toFixed(
-                        1
-                      )}%`
-                    : "N/A"}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span>Precision:</span>
-                <span className="font-medium">
-                  {mlHealth?.metrics?.trending?.precision
-                    ? `${(mlHealth.metrics.trending.precision * 100).toFixed(
-                        1
-                      )}%`
-                    : "N/A"}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span>Recall:</span>
-                <span className="font-medium">
-                  {mlHealth?.metrics?.trending?.recall
-                    ? `${(mlHealth.metrics.trending.recall * 100).toFixed(1)}%`
-                    : "N/A"}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span>AUC:</span>
-                <span className="font-medium">
-                  {mlHealth?.is_trained ? "94.1%" : "N/A"}
-                </span>
-              </div>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-            <Activity className="w-8 h-8 text-green-600 mx-auto mb-3" />
+            <TrendingUp className="w-8 h-8 text-green-600 mx-auto mb-3" />
             <h4 className="text-lg font-semibold text-gray-900">
-              Views Regressor
+              Days Regressor
             </h4>
-            <p className="text-sm text-gray-600 mb-2">Dự đoán lượt xem</p>
+            <p className="text-sm text-gray-600 mb-2">
+              Dự đoán số ngày trending
+            </p>
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span>RMSE:</span>
@@ -446,8 +403,12 @@ const Dashboard = () => {
                 </span>
               </div>
               <div className="flex justify-between text-xs">
-                <span>Inertia:</span>
-                <span className="font-medium">N/A</span>
+                <span>Features:</span>
+                <span className="font-medium">
+                  {mlHealth?.metrics?.clustering?.features_used
+                    ? mlHealth.metrics.clustering.features_used.length
+                    : "N/A"}
+                </span>
               </div>
             </div>
           </div>
