@@ -1,109 +1,131 @@
-# YouTube Trending Analytics
+# Phân Tích Xu Hướng YouTube
 
-## Overview
+## Tổng Quan
 
-YouTube trending video analysis using Apache Spark, HDFS, and Machine Learning with React frontend.
+Phân tích video xu hướng YouTube sử dụng Apache Spark, HDFS và Học Máy với giao diện người dùng React.
 
-## Architecture
+## Kiến Trúc
 
 ```
-CSV Data → HDFS → Spark Processing → MongoDB → FastAPI → React Frontend
+Dữ liệu CSV → HDFS → Xử lý Spark → MongoDB → FastAPI → Giao diện React
                       ↓
-              Spark MLlib Training → HDFS Model Storage
+              Huấn luyện Spark MLlib → Lưu trữ Model HDFS
 ```
 
-## Tech Stack
+## Công Nghệ Sử Dụng
 
 - **Big Data**: Apache Spark, HDFS, MongoDB
-- **ML**: Spark MLlib (RandomForest for days regression, KMeans for clustering)
+- **ML**: Spark MLlib (RandomForest cho hồi quy ngày, KMeans cho phân cụm)
 - **Backend**: FastAPI, Python
 - **Frontend**: React, TailwindCSS
 
-## Project Structure
+## Cấu Trúc Dự Án
 
 ```
 youtube-trending-project/
-├── data/                    # Raw CSV data (10 countries)
-├── spark/                   # Spark jobs and ML models
-├── backend/                 # FastAPI application
-├── frontend/                # React dashboard
-├── run_pipeline.py          # Main pipeline runner
+├── data/                    # Dữ liệu CSV thô (10 quốc gia)
+├── spark/                   # Công việc Spark và mô hình ML
+├── backend/                 # Ứng dụng FastAPI
+│   ├── app/
+│   │   ├── main.py          # Điểm vào ứng dụng FastAPI
+│   │   ├── ml_service.py    # Logic dịch vụ ML
+│   │   ├── routes/          # Các tuyến API
+│   │   ├── services/        # Dịch vụ logic nghiệp vụ
+│   │   ├── models/          # Mô hình Pydantic
+│   │   └── utils/           # Các hàm tiện ích
+│   └── requirements.txt     # Phụ thuộc backend
+├── frontend/                # Bảng điều khiển React
+│   ├── src/
+│   │   ├── components/      # Các thành phần React
+│   │   ├── pages/           # Các thành phần trang
+│   │   ├── hooks/           # Hooks tùy chỉnh
+│   │   └── context/         # Context React
+│   └── package.json         # Phụ thuộc frontend
+├── config/                  # Các tệp cấu hình
+├── report/                  # Báo cáo dự án (PDF, DOCX)
+├── tools/                   # Các công cụ bổ sung
+├── run.py                   # Script chạy chính
+├── setup.py                 # Script cài đặt
 └── README.md
 ```
 
-## Quick Start
+## Bắt Đầu Nhanh
 
-### Prerequisites
+### Yêu Cầu Tiên Quyết
+
 - Python 3.8+, Node.js 16+, Java 8/11
 - MongoDB, Apache Spark 3.x, Hadoop/HDFS
 - Windows/Linux/Mac
 
-### Installation & Setup
+### Cài Đặt & Thiết Lập
 
 ```bash
-# Clone repository
+# Sao chép kho lưu trữ
 git clone https://github.com/dexter826/youtube-trending-project.git
 cd youtube-trending-project
 
-# One-click setup (installs all dependencies)
+# Thiết lập một lần nhấp (cài đặt tất cả phụ thuộc)
 python setup.py
 ```
 
-### Running the Project
+### Chạy Dự Án
 
 ```bash
-# Start backend + frontend only
+# Khởi động backend + frontend chỉ
 python run.py app
 
-# Start full stack (infrastructure + pipeline + app)
+# Khởi động toàn bộ stack (cơ sở hạ tầng + pipeline + ứng dụng)
 python run.py all
 
-# Start infrastructure only (HDFS + MongoDB)
+# Khởi động cơ sở hạ tầng chỉ (HDFS + MongoDB)
 python run.py infrastructure
 
-# Run data pipeline only
+# Chạy pipeline dữ liệu chỉ
 python run.py pipeline
 
-# Check service status
+# Kiểm tra trạng thái dịch vụ
 python run.py status
 ```
 
-### Access Points
+### Điểm Truy Cập
 
 - **Frontend**: http://localhost:3000
 - **API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
 - **HDFS**: http://localhost:9870
 
-## Features
+## Tính Năng
 
-- Multi-country trending analysis (10 countries)
-- ML predictions: clustering and days-in-trending only
-- Predict by YouTube URL using YouTube Data API v3 (provide your API key at runtime)
-- Interactive dashboard with charts
-- Real-time data processing with Spark
+- Phân tích xu hướng đa quốc gia (10 quốc gia)
+- Dự đoán ML: phân cụm và chỉ ngày xu hướng
+- Dự đoán theo URL YouTube sử dụng YouTube Data API v3 (cung cấp khóa API của bạn tại thời gian chạy)
+- Bảng điều khiển tương tác với biểu đồ
+- Xử lý dữ liệu thời gian thực với Spark
 
-## ML Models
+## Mô Hình ML
 
-- **Days-in-Trending Regressor**: RandomForest regression (label: days_in_trending)
-- **Content Clusterer**: KMeans clustering
+- **Hồi Quy Ngày Xu Hướng**: Hồi quy RandomForest (nhãn: days_in_trending)
+- **Phân Cụm Nội Dung**: Phân cụm KMeans
 
-## API Endpoints
+## Điểm Cuối API
 
-### Data
-- `GET /countries` - Available countries
-- `GET /trending` - Trending videos
-- `GET /statistics` - Analytics data
+### Dữ Liệu
+
+- `GET /countries` - Các quốc gia có sẵn
+- `GET /trending` - Video xu hướng
+- `GET /statistics` - Dữ liệu phân tích
 
 ### ML
-- `POST /ml/train` - Train models (clustering + days-in-trending)
-- `POST /ml/predict/days` - Predict number of days a video may stay on trending (structured input)
-- `POST /ml/predict/cluster` - Predict content cluster (structured input)
-- `POST /ml/predict/url` - Predict by YouTube URL (requires body: { url, api_key })
 
-## Configuration
+- `POST /ml/train` - Huấn luyện mô hình (phân cụm + ngày xu hướng)
+- `POST /ml/predict/days` - Dự đoán số ngày video có thể ở trên xu hướng (đầu vào có cấu trúc)
+- `POST /ml/predict/cluster` - Dự đoán cụm nội dung (đầu vào có cấu trúc)
+- `POST /ml/predict/url` - Dự đoán theo URL YouTube (yêu cầu body: { url, api_key })
+
+## Cấu Hình
 
 ### Spark
+
 ```python
 spark_config = {
     "spark.master": "local[*]",
@@ -112,51 +134,24 @@ spark_config = {
 ```
 
 ### MongoDB
+
 ```python
 MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "youtube_trending"
 ```
 
-## Performance
+## Hiệu Suất
 
-- **Data Volume**: 375K+ records
-- **Processing**: ~10K records/second
-- **API Response**: < 200ms average
-- **Concurrent Users**: 100+ supported
+- **Khối Lượng Dữ Liệu**: 375K+ bản ghi
+- **Xử Lý**: ~10K bản ghi/giây
+- **Phản Hồi API**: < 200ms trung bình
+- **Người Dùng Đồng Thời**: Hỗ trợ 100+ người
 
-## Developer
+## Nhà Phát Triển
 
 Trần Công Minh - MSSV: 2001222641
 
-## Migration Guide
+### Thay Đổi Cấu Trúc Tệp
 
-### From Old Scripts to New Simplified Setup
-
-**Old way (deprecated - removed):**
-```bash
-python run_pipeline.py     # ❌ Old pipeline script
-start-full.bat            # ❌ Old batch script  
-start-app.bat             # ❌ Old batch script
-```
-
-**New simplified way:**
-```bash
-# One-time setup
-python setup.py           # ✅ Install everything
-
-# Run as needed
-python run.py app         # ✅ Start backend + frontend
-python run.py all         # ✅ Start full stack
-```
-
-### File Structure Changes
-- ✅ **setup.py**: One-click environment setup
-- ✅ **run.py**: Flexible runner for different modes
-- ✅ **Removed**: 3 confusing files → 2 clear files
-
-### Benefits of New Approach
-- ✅ **Simpler**: Just 2 files instead of 3 confusing ones
-- ✅ **Clear separation**: Setup vs Run
-- ✅ **Environment-aware**: Uses .env file for configuration
-- ✅ **Better error handling**: Prerequisites checking, helpful messages
-- ✅ **Flexible**: Run only what you need
+- ✅ **setup.py**: Thiết lập môi trường một lần nhấp
+- ✅ **run.py**: Trình chạy linh hoạt cho các chế độ khác nhau

@@ -273,7 +273,7 @@ async def get_wordcloud_data(country: Optional[str] = None):
         logger.error(f"Failed to get wordcloud data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get wordcloud data: {str(e)}")
 
-@router.get("/admin/database-stats")
+@router.get("/database-stats")
 async def get_database_stats():
     """Get database statistics"""
     try:
