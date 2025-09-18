@@ -39,6 +39,8 @@ class ProjectRunner:
                 print(f"❌ Failed: {description}")
                 if result.stderr:
                     print(f"Error: {result.stderr}")
+                if result.stdout:
+                    print(f"Output: {result.stdout}")
                 return False
 
             if result.stdout and not result.stdout.startswith("WARNING"):
@@ -131,14 +133,6 @@ class ProjectRunner:
         if not self.run_command(
             f"python {training_script}",
             "Training ML models"
-        ):
-            return False
-
-        # Analyze clusters for dynamic naming
-        analyze_script = str(path_config.SPARK_ANALYZE_CLUSTERS_SCRIPT)
-        if not self.run_command(
-            f"python {analyze_script}",
-            "Analyzing clusters"
         ):
             return False
 

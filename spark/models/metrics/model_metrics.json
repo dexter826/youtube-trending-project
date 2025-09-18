@@ -1,0 +1,40 @@
+{
+  "clustering": {
+    "silhouette_score": 0.3401191105195578,
+    "num_clusters": 3,
+    "features_used": [
+      "log_views",
+      "log_likes",
+      "log_dislikes",
+      "log_comments",
+      "like_ratio",
+      "engagement_score",
+      "title_length",
+      "tag_count",
+      "category_id",
+      "publish_hour",
+      "video_age_proxy"
+    ]
+  },
+  "regression": {
+    "rmse": 1.685969828868527,
+    "mae": 0.6321558963243549,
+    "r2_score": 0.7276903637417071,
+    "label": "days_in_trending",
+    "features_used": [
+      "views",
+      "likes",
+      "dislikes",
+      "comment_count",
+      "like_ratio",
+      "engagement_score",
+      "title_length",
+      "tag_count",
+      "category_id",
+      "publish_hour",
+      "video_age_proxy"
+    ]
+  },
+  "training_timestamp": "2025-09-18T10:55:42.154602",
+  "dataset_size": 375940
+}

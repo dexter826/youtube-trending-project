@@ -77,9 +77,9 @@ class DataPreparation:
                               when(col("engagement_score") > 0.1, 1).otherwise(2))
 
         # Aggregate per video to get label and representative features
+        # Note: 'title' and 'tags' are not present in ml_features; aggregate
+        # existing numeric proxies instead: title_length, tag_count
         agg = df.groupBy("video_id").agg(
-            F_max("title").alias("title"),
-            F_max("tags").alias("tags"),
             F_max("category_id").alias("category_id"),
             F_max("views").alias("views"),
             F_max("likes").alias("likes"),
@@ -87,14 +87,14 @@ class DataPreparation:
             F_max("comment_count").alias("comment_count"),
             F_max("publish_hour").alias("publish_hour"),
             F_max("video_age_proxy").alias("video_age_proxy"),
+            F_max("title_length").alias("title_length"),
+            F_max("tag_count").alias("tag_count"),
             F_count(lit(1)).alias("days_in_trending"),
         )
 
         # Derived features consistent with inference
         agg = agg.withColumn("like_ratio", (col("likes") / (col("views") + lit(1e-9)))) \
-                 .withColumn("engagement_score", (col("likes") + col("comment_count")) / (col("views") + lit(1e-9))) \
-                 .withColumn("title_length", col("title").cast("string").substr(lit(1), lit(100000)).length()) \
-                 .withColumn("tag_count", when(col("tags").isNull(), lit(0)).otherwise(lit(1)))
+                 .withColumn("engagement_score", (col("likes") + col("comment_count")) / (col("views") + lit(1e-9)))
 
         feature_cols = [
             "views", "likes", "dislikes", "comment_count", "like_ratio",
