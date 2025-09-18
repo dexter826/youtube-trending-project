@@ -103,7 +103,7 @@ async def predict_cluster(video_data: VideoMLInput):
 
 @router.post("/predict/url")
 async def predict_from_url(payload: UrlInput):
-    """Predict using a YouTube URL. Returns combined days + cluster predictions."""
+    """Predict using a YouTube URL."""
     try:
         ml_service = _get_ml_service()
         result = ml_service.predict_from_url(payload.url)

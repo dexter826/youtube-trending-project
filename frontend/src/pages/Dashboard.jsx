@@ -353,8 +353,8 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="text-center p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
-            <TrendingUp className="w-8 h-8 text-red-600 mx-auto mb-3" />
+          <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
+            <TrendingUp className="w-8 h-8 text-green-600 mx-auto mb-3" />
             <h4 className="text-lg font-semibold text-gray-900">
               Days Regressor
             </h4>
@@ -391,8 +391,8 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="text-center p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
-            <HardDrive className="w-8 h-8 text-red-600 mx-auto mb-3" />
+          <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
+            <HardDrive className="w-8 h-8 text-green-600 mx-auto mb-3" />
             <h4 className="text-lg font-semibold text-gray-900">
               Content Clusterer
             </h4>

@@ -83,11 +83,10 @@ class ModelLoader:
         except Exception as e:
             self.metrics = {}
 
-    # Removed legacy cluster name loaders; using unified fixed mapping
     def get_model(self, model_name: str):
         """Get a specific model"""
         return self.models.get(model_name)
 
     def get_cluster_name(self, cluster_id: int) -> str:
-        """Get cluster name by ID with unified fixed mapping; fallback to generic label if out of range."""
+        """Get cluster name by ID"""
         return self.cluster_names.get(str(cluster_id), f"Cluster {cluster_id}")

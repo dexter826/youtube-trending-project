@@ -258,7 +258,9 @@ const TrendingAnalysis = () => {
           <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
             Ngày:{" "}
             <span className="font-medium">
-              {filters.date === "" ? "Tất cả ngày" : (filters.date || "Tất cả ngày")}
+              {filters.date === ""
+                ? "Tất cả ngày"
+                : filters.date || "Tất cả ngày"}
             </span>
           </span>
           <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">

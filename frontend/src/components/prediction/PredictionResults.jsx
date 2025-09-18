@@ -30,7 +30,7 @@ const PredictionCard = ({
         <LoadingSpinner message="Đang thực hiện dự đoán..." />
       ) : result ? (
         <div className="w-full space-y-3">
-          {/* Hiển thị kết quả dướidạng bảng */}
+          {/* Hiển thị kết quả dưới dạng bảng */}
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto border-collapse border border-gray-300">
               <thead>
@@ -44,7 +44,7 @@ const PredictionCard = ({
                 </tr>
               </thead>
               <tbody>
-                {/* Sử dụng result thay vì result.prediction */}
+                {/* Extract prediction data */}
                 {result?.predicted_days !== undefined && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">

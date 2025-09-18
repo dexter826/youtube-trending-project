@@ -38,10 +38,9 @@ class FeatureProcessor:
             self.nlp_pipeline = None
 
     def _add_nlp_features(self, df):
-        """Add NLP features if pipeline is available - disabled for now"""
-        # Temporarily disable NLP to match trained model
-        df = df.withColumn("title_tfidf", [0.0] * df.count()) \
-               .withColumn("desc_tfidf", [0.0] * df.count())
+        """Add NLP features if pipeline is available"""
+        # df = df.withColumn("title_tfidf", [0.0] * df.count()) \
+        #        .withColumn("desc_tfidf", [0.0] * df.count())
         return df
 
     def create_days_regression_dataframe(self, video_data: Dict[str, Any]):
@@ -53,7 +52,7 @@ class FeatureProcessor:
             title = video_data.get("title", "")
             description = video_data.get("description", "")
 
-            # New time-based features
+            # Time-based features
             publish_hour = float(video_data.get("publish_hour", 12))
             video_age_proxy = float(video_data.get("video_age_proxy", 2))
 
@@ -104,7 +103,7 @@ class FeatureProcessor:
             title = video_data.get("title", "")
             description = video_data.get("description", "")
 
-            # New time-based features
+            # Time-based features
             publish_hour = float(video_data.get("publish_hour", 12))
             video_age_proxy = float(video_data.get("video_age_proxy", 2))
 

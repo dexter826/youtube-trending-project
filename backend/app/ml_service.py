@@ -1,5 +1,5 @@
 """
-Machine Learning Service - Refactored to use modular services
+Machine Learning Service
 """
 
 import os
@@ -85,9 +85,9 @@ class MLService:
             except:
                 pass
 
-    # New: Predict from YouTube URL via YouTube Data API v3
+    # Predict from YouTube URL via YouTube Data API v3
     def predict_from_url(self, url: str) -> Dict[str, Any]:
-        """Fetch video metadata from YouTube and run predictions (days + cluster)."""
+        """Fetch video metadata from YouTube and run predictions."""
         try:
             # Strictly use API key from environment
             api_key = os.getenv("YOUTUBE_API_KEY")

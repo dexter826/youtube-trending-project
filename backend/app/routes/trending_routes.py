@@ -118,9 +118,7 @@ async def get_categories(country: Optional[str] = None):
 
 @router.get("/dates")
 async def get_dates(country: Optional[str] = None):
-    """Get list of available dates, optionally filtered by country.
-    Supports legacy field names by checking both 'date' and 'trending_date'.
-    """
+    """Get list of available dates, optionally filtered by country."""
     try:
         if router.db is None:
             raise HTTPException(status_code=500, detail="Database connection not initialized")
@@ -143,12 +141,7 @@ async def get_trending_videos(
     order: Optional[str] = Query("desc", description="asc|desc"),
     limit: int = Query(200, le=1000)
 ):
-    """Get trending videos with filters, date selection and sorting.
-    - date: filter by trending_date (string as stored in DB)
-    - sort_by: one of views, likes, comments (comment_count), engagement
-    - order: asc or desc
-    - limit: internal cap, hidden from UI
-    """
+    """Get trending videos with filters, date selection and sorting."""
     try:
         if router.db is None:
             logger.error("Database connection is None")

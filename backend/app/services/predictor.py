@@ -13,13 +13,10 @@ class Predictor:
         self.feature_processor = feature_processor
 
     def predict_days(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict number of days a video may stay on trending.
-        If trained model 'days_regressor' is unavailable, use a heuristic fallback.
-        """
+        """Predict number of days a video may stay on trending."""
         try:
             model = self.model_loader.models.get("days_regressor")
             if model is not None:
-                # Build features for days-in-trending regression (aligned with training pipeline)
                 input_df = self.feature_processor.create_days_regression_dataframe(video_data)
                 predictions = model.transform(input_df)
                 result = predictions.select("prediction").collect()[0]
@@ -57,7 +54,7 @@ class Predictor:
             result = predictions.select("cluster").collect()[0]
             cluster = int(result["cluster"])
 
-            # Use dynamic cluster names instead of hard-coded
+            # Use dynamic cluster names
             cluster_type = self.model_loader.get_cluster_name(cluster)
 
             return {
