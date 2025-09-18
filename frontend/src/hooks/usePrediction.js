@@ -9,6 +9,8 @@ export const usePrediction = () => {
     cluster: null,
   });
 
+  const [videoMetadata, setVideoMetadata] = useState(null);
+
   const [predictionLoading, setPredictionLoading] = useState({
     days: false,
     cluster: false,
@@ -45,11 +47,14 @@ export const usePrediction = () => {
   const handlePredictByUrl = async (url) => {
     setPredictionLoading((prev) => ({ ...prev, all: true, days: true, cluster: true }));
     setPredictions({ days: null, cluster: null });
+    setVideoMetadata(null);
     try {
       const data = await predictByUrl(url);
       const days = data?.result?.prediction?.days || null;
       const cluster = data?.result?.prediction?.cluster || null;
+      const metadata = data?.result?.input_video || null;
       setPredictions({ days, cluster });
+      setVideoMetadata(metadata);
     } catch (e) {
       // handled by ApiContext
     } finally {
@@ -93,6 +98,7 @@ export const usePrediction = () => {
   return {
     predictions,
     predictionLoading,
+    videoMetadata,
     handlePredict,
     handlePredictAll,
     handlePredictByUrl,

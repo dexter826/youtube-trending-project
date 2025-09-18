@@ -11,7 +11,7 @@ import { useApi } from "../context/ApiContext";
 const PredictionPage = () => {
   const { error } = useApi();
   const { mlHealth } = useModelData();
-  const { predictions, predictionLoading, handlePredictByUrl } =
+  const { predictions, predictionLoading, videoMetadata, handlePredictByUrl } =
     usePrediction();
 
   return (
@@ -39,6 +39,7 @@ const PredictionPage = () => {
           onPredictByUrl={(url) => handlePredictByUrl(url)}
           loading={predictionLoading.all}
           mlHealth={mlHealth}
+          videoMetadata={videoMetadata}
         />
 
         {/* Predictions Results */}
