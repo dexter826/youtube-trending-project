@@ -28,10 +28,9 @@ class ModelSaving:
         model.write().overwrite().save(model_path)
         return model_path
 
-    def save_metrics_to_json(self, trending_metrics, clustering_metrics, regression_metrics, dataset_size):
-        """Save all model metrics to JSON file"""
+    def save_metrics_to_json(self, clustering_metrics, regression_metrics, dataset_size):
+        """Save model metrics (clustering and days regression) to JSON file"""
         all_metrics = {
-            "trending": trending_metrics,
             "clustering": clustering_metrics,
             "regression": regression_metrics,
             "training_timestamp": datetime.now().isoformat(),
@@ -45,10 +44,9 @@ class ModelSaving:
 
         return str(local_metrics_path)
 
-    def save_metrics_to_mongodb(self, db, trending_metrics, clustering_metrics, regression_metrics, dataset_size):
+    def save_metrics_to_mongodb(self, db, clustering_metrics, regression_metrics, dataset_size):
         """Save metrics to MongoDB"""
         metrics_doc = {
-            "trending": trending_metrics,
             "clustering": clustering_metrics,
             "regression": regression_metrics,
             "training_timestamp": datetime.now().isoformat(),

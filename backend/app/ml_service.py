@@ -2,11 +2,14 @@
 Machine Learning Service - Refactored to use modular services
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import HTTPException
 import os
 import sys
 from pathlib import Path
+import requests
+from urllib.parse import urlparse, parse_qs
+from datetime import datetime, timezone
 
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -45,9 +48,6 @@ class MLService:
             raise HTTPException(status_code=503, detail="Spark initialization failed")
 
     # Delegate methods to services
-    def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        return self.predictor.predict_views(video_data)
-
     def predict_cluster(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         return self.predictor.predict_cluster(video_data)
 
@@ -84,6 +84,129 @@ class MLService:
                 self.spark.stop()
             except:
                 pass
+
+    # New: Predict from YouTube URL via YouTube Data API v3
+    def predict_from_url(self, url: str, api_key: Optional[str] = None) -> Dict[str, Any]:
+        """Fetch video metadata from YouTube and run predictions (days + cluster)."""
+        try:
+            # Prefer explicitly provided key; otherwise, fallback to environment
+            if not api_key:
+                api_key = os.getenv("YOUTUBE_API_KEY")
+            if not api_key:
+                raise HTTPException(status_code=400, detail="Missing api_key (and YOUTUBE_API_KEY not set)")
+
+            video_id = self._extract_video_id(url)
+            if not video_id:
+                raise HTTPException(status_code=400, detail="Invalid YouTube URL")
+
+            # Fetch video details
+            api_url = (
+                "https://www.googleapis.com/youtube/v3/videos"
+                f"?part=snippet,statistics,contentDetails&id={video_id}&key={api_key}"
+            )
+            resp = requests.get(api_url, timeout=15)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail="YouTube API request failed")
+            data = resp.json()
+            items = data.get("items", [])
+            if not items:
+                raise HTTPException(status_code=404, detail="Video not found or not accessible")
+
+            item = items[0]
+            snippet = item.get("snippet", {})
+            statistics = item.get("statistics", {})
+
+            title = snippet.get("title", "")
+            tags_list = snippet.get("tags", []) or []
+            tags = "|".join(tags_list)
+            category_id = int(snippet.get("categoryId", 0) or 0)
+            published_at = snippet.get("publishedAt")
+
+            # Stats
+            def to_int(x):
+                try:
+                    return int(x)
+                except Exception:
+                    return 0
+
+            views = to_int(statistics.get("viewCount", 0))
+            likes = to_int(statistics.get("likeCount", 0))  # May be hidden; default 0
+            dislikes = 0  # Not available via API
+            comment_count = to_int(statistics.get("commentCount", 0))
+
+            # Time features
+            publish_hour = 12
+            video_age_proxy = 2
+            if published_at:
+                try:
+                    dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                    publish_hour = dt.hour
+                    days_old = (datetime.now(timezone.utc) - dt).days
+                    if days_old <= 1:
+                        video_age_proxy = 1
+                    elif days_old <= 7:
+                        video_age_proxy = 2
+                    elif days_old <= 30:
+                        video_age_proxy = 3
+                    else:
+                        video_age_proxy = 4
+                except Exception:
+                    pass
+
+            # Build unified feature dict expected by FeatureProcessor
+            video_data = {
+                "title": title,
+                "views": views,
+                "likes": likes,
+                "dislikes": dislikes,
+                "comment_count": comment_count,
+                "category_id": category_id,
+                "tags": tags,
+                "publish_hour": publish_hour,
+                "video_age_proxy": video_age_proxy,
+            }
+
+            days_pred = self.predictor.predict_days(video_data)
+            cluster_pred = self.predictor.predict_cluster(video_data)
+
+            return {
+                "input_video": {
+                    "id": video_id,
+                    "title": title,
+                    "category_id": category_id,
+                    "publish_hour": publish_hour,
+                    "video_age_proxy": video_age_proxy,
+                    "views": views,
+                    "likes": likes,
+                    "comment_count": comment_count,
+                },
+                "prediction": {
+                    "days": days_pred,
+                    "cluster": cluster_pred,
+                },
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Prediction from URL failed: {str(e)}")
+
+    def _extract_video_id(self, url: str) -> str:
+        """Extract YouTube video ID from various URL formats."""
+        try:
+            parsed = urlparse(url)
+            if parsed.netloc in ("youtu.be",):
+                # Short URL: youtu.be/<id>
+                vid = parsed.path.lstrip("/")
+                return vid
+            if parsed.netloc.endswith("youtube.com"):
+                qs = parse_qs(parsed.query)
+                vid = qs.get("v", [None])[0]
+                if not vid and parsed.path.startswith("/embed/"):
+                    vid = parsed.path.split("/embed/")[-1]
+                return vid
+            return None
+        except Exception:
+            return None
 
 
 # Global ML service instance

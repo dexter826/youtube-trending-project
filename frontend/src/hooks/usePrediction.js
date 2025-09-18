@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useApi } from "../context/ApiContext";
 
 export const usePrediction = () => {
-  const { predictDays, predictCluster } = useApi();
+  const { predictDays, predictCluster, predictByUrl } = useApi();
 
   const [predictions, setPredictions] = useState({
     days: null,
@@ -38,6 +38,22 @@ export const usePrediction = () => {
       // Error handled by ApiContext
     } finally {
       setPredictionLoading((prev) => ({ ...prev, [type]: false }));
+    }
+  };
+
+  // New: Predict by YouTube URL (returns both days + cluster)
+  const handlePredictByUrl = async (url, apiKey) => {
+    setPredictionLoading((prev) => ({ ...prev, all: true }));
+    setPredictions({ days: null, cluster: null });
+    try {
+      const data = await predictByUrl(url, apiKey);
+      const days = data?.result?.prediction?.days || null;
+      const cluster = data?.result?.prediction?.cluster || null;
+      setPredictions({ days, cluster });
+    } catch (e) {
+      // handled by ApiContext
+    } finally {
+      setPredictionLoading((prev) => ({ ...prev, all: false }));
     }
   };
 
@@ -79,6 +95,7 @@ export const usePrediction = () => {
     predictionLoading,
     handlePredict,
     handlePredictAll,
+    handlePredictByUrl,
     clearPredictions,
   };
 };

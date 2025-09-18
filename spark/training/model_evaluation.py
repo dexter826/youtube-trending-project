@@ -3,8 +3,6 @@ Model Evaluation Module
 """
 
 from pyspark.ml.evaluation import (
-    BinaryClassificationEvaluator,
-    MulticlassClassificationEvaluator,
     RegressionEvaluator,
     ClusteringEvaluator
 )
@@ -14,33 +12,7 @@ class ModelEvaluation:
     def __init__(self, spark_session):
         self.spark = spark_session
 
-    def evaluate_trending_prediction_model(self, predictions, feature_cols):
-        """Evaluate trending prediction model and return metrics"""
-        # Binary classification metrics
-        binary_evaluator = BinaryClassificationEvaluator(labelCol="is_trending")
-        auc = binary_evaluator.evaluate(predictions)
-
-        # Multiclass classification metrics
-        multi_evaluator = MulticlassClassificationEvaluator(
-            labelCol="is_trending",
-            predictionCol="prediction"
-        )
-
-        accuracy = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "accuracy"})
-        precision = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "weightedPrecision"})
-        recall = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "weightedRecall"})
-        f1 = multi_evaluator.evaluate(predictions, {multi_evaluator.metricName: "f1"})
-
-        trending_metrics = {
-            "auc": float(auc),
-            "accuracy": float(accuracy),
-            "precision": float(precision),
-            "recall": float(recall),
-            "f1_score": float(f1),
-            "features_used": feature_cols
-        }
-
-        return trending_metrics
+    # Removed trending classification evaluation (app focuses on clustering and days regression)
 
     def evaluate_clustering_model(self, predictions, feature_cols):
         """Evaluate clustering model and return metrics"""

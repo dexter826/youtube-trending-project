@@ -38,10 +38,8 @@ class ModelLoader:
                 raise HTTPException(status_code=503, detail="Spark session not initialized")
 
             hdfs_model_paths = {
-                "trending_classifier": "hdfs://localhost:9000/youtube_trending/models/trending_prediction",
-                "views_regressor": "hdfs://localhost:9000/youtube_trending/models/regression",
                 "content_clusterer": "hdfs://localhost:9000/youtube_trending/models/clustering",
-                # optional: new regressor for days in trending
+                # days regressor for predicting days in trending
                 "days_regressor": "hdfs://localhost:9000/youtube_trending/models/days_regression",
             }
 

@@ -45,9 +45,6 @@ class YouTubeMLTrainer:
         df = self.spark.createDataFrame(pandas_df)
         return df
 
-    def train_trending_prediction_model(self, df):
-        return None, {}
-
     def train_clustering_model(self, df):
         """Train clustering model using modular components"""
         # Prepare data
@@ -87,7 +84,7 @@ class YouTubeMLTrainer:
     def run_training_pipeline(self):
         """Run complete model training pipeline using modular components"""
         try:
-            print("🤖 Starting ML Training Pipeline...")
+            print("Starting ML Training Pipeline...")
             start_time = time.time()
 
             # Step 1: Load training data
@@ -102,7 +99,7 @@ class YouTubeMLTrainer:
             print(f"   [INFO] Loaded {record_count} training records")
 
             # Step 2: Train models
-            print("\n🎯 Step 2/3: Training ML models (Clustering k=3, Days Regression)...")
+            print("\nStep 2/3: Training ML models (Clustering k=3, Days Regression)...")
             step_start = time.time()
 
             # Train clustering model
@@ -116,27 +113,24 @@ class YouTubeMLTrainer:
             print(f"      [METRICS] R² Score: {days_metrics['r2_score']:.3f}, RMSE: {days_metrics['rmse']:.4f}")
 
             # Step 3: Save results
-            print("\n💾 Step 3/3: Saving models and metrics...")
+            print("\nStep 3/3: Saving models and metrics...")
             step_start = time.time()
             dataset_size = df.count()
-            # Compose metrics for backward compatibility keys
-            trending_metrics = {}
-            regression_metrics = days_metrics  # repurpose 'regression' key as days metrics
+            # Only clustering and days regression metrics
+            regression_metrics = days_metrics
             metrics_path = self.model_saving.save_metrics_to_json(
-                trending_metrics, clustering_metrics, regression_metrics, dataset_size
+                clustering_metrics, regression_metrics, dataset_size
             )
 
             # Also save to MongoDB
             self.model_saving.save_metrics_to_mongodb(
-                self.db, trending_metrics, clustering_metrics, regression_metrics, dataset_size
+                self.db, clustering_metrics, regression_metrics, dataset_size
             )
             print(f"   [SAVE] Metrics saved to: {metrics_path}")
 
             # Summary
             total_time = time.time() - start_time
-            print(
-                "\n[SUCCESS] ML Training Pipeline completed successfully!"
-            )
+            print("\n[SUCCESS] ML Training Pipeline completed successfully!")
             print(f"   [INFO] Dataset size: {dataset_size} records")
             print("   [INFO] Models trained: 2 (Clustering k=3, Days Regression)")
             return all([clustering_model, days_model])

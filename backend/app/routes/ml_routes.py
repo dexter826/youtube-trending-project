@@ -27,6 +27,10 @@ class VideoMLInput(BaseModel):
     publish_hour: int = 12
     video_age_proxy: int = 2
 
+class UrlInput(BaseModel):
+    url: str
+    api_key: str
+
 @router.get("/health")
 async def health_check():
     """Health check endpoint for ML service"""
@@ -113,3 +117,20 @@ async def predict_cluster(video_data: VideoMLInput):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Clustering failed: {str(e)}")
+
+
+@router.post("/predict/url")
+async def predict_from_url(payload: UrlInput):
+    """Predict using a YouTube URL. Returns combined days + cluster predictions."""
+    try:
+        ml_service = router.get_ml_service()
+        if not ml_service:
+            raise HTTPException(status_code=500, detail="ML service not initialized")
+
+        result = ml_service.predict_from_url(payload.url, payload.api_key)
+        return {
+            "result": result,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction from URL failed: {str(e)}")

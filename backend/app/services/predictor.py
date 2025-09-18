@@ -12,31 +12,6 @@ class Predictor:
         self.model_loader = model_loader
         self.feature_processor = feature_processor
 
-
-    def predict_views(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Predict view count for a video"""
-        try:
-            if not self.model_loader.is_trained or "views_regressor" not in self.model_loader.models:
-                raise HTTPException(status_code=503, detail="Views regressor not available. Train models first.")
-
-            input_df = self.feature_processor.create_regression_dataframe(video_data)
-
-            model = self.model_loader.models["views_regressor"]
-            predictions = model.transform(input_df)
-
-            result = predictions.select("prediction").collect()[0]
-            predicted_log_views = float(result["prediction"])
-            predicted_views = int(max(0, math.exp(predicted_log_views) - 1))
-
-            return {
-                "predicted_views": predicted_views,
-                "confidence": "high",
-                "method": "spark_mllib"
-            }
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
     def predict_days(self, video_data: Dict[str, Any]) -> Dict[str, Any]:
         """Predict number of days a video may stay on trending.
         If trained model 'days_regressor' is unavailable, use a heuristic fallback.

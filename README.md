@@ -15,7 +15,7 @@ CSV Data → HDFS → Spark Processing → MongoDB → FastAPI → React Fronten
 ## Tech Stack
 
 - **Big Data**: Apache Spark, HDFS, MongoDB
-- **ML**: Spark MLlib (RandomForest, KMeans)
+- **ML**: Spark MLlib (RandomForest for days regression, KMeans for clustering)
 - **Backend**: FastAPI, Python
 - **Frontend**: React, TailwindCSS
 
@@ -78,14 +78,14 @@ python run.py status
 ## Features
 
 - Multi-country trending analysis (10 countries)
-- ML predictions (trending, views, clustering)
+- ML predictions: clustering and days-in-trending only
+- Predict by YouTube URL using YouTube Data API v3 (provide your API key at runtime)
 - Interactive dashboard with charts
 - Real-time data processing with Spark
 
 ## ML Models
 
-- **Trending Classifier**: RandomForest binary classification
-- **Views Regressor**: RandomForest regression
+- **Days-in-Trending Regressor**: RandomForest regression (label: days_in_trending)
 - **Content Clusterer**: KMeans clustering
 
 ## API Endpoints
@@ -96,10 +96,10 @@ python run.py status
 - `GET /statistics` - Analytics data
 
 ### ML
-- `POST /ml/train` - Train models
-- `POST /ml/predict` - Trending prediction
-- `POST /ml/predict-views` - View prediction
-- `POST /ml/clustering` - Content clustering
+- `POST /ml/train` - Train models (clustering + days-in-trending)
+- `POST /ml/predict/days` - Predict number of days a video may stay on trending (structured input)
+- `POST /ml/predict/cluster` - Predict content cluster (structured input)
+- `POST /ml/predict/url` - Predict by YouTube URL (requires body: { url, api_key })
 
 ## Configuration
 

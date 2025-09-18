@@ -3,6 +3,7 @@ FastAPI Backend for YouTube Trending Analytics
 """
 
 from fastapi import FastAPI
+
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from datetime import datetime
@@ -10,6 +11,7 @@ import os
 import sys
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +20,9 @@ logger = logging.getLogger(__name__)
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+# Load environment variables from .env
+load_dotenv(dotenv_path=project_root / ".env")
 
 from backend.app.ml_service import get_ml_service, initialize_ml_service
 from backend.app.routes.trending_routes import router as trending_router
