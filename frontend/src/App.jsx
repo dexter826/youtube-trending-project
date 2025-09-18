@@ -22,7 +22,7 @@ function App() {
         ) : (
           <div className="min-h-screen bg-gray-50">
             <Navbar />
-            <main className="container mx-auto px-4 py-8">
+            <main className="container mx-auto px-4 pt-8 pb-4">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/analysis" element={<TrendingAnalysis />} />

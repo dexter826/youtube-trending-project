@@ -5,7 +5,6 @@ import {
   ThumbsUp,
   MessageCircle,
   Database,
-  RefreshCw,
   BarChart3,
   Brain,
   CheckCircle,
@@ -34,21 +33,18 @@ const Dashboard = () => {
 
   const {
     data: countries = [],
-    isLoading: countriesLoading,
     error: countriesError,
     refetch: refetchCountries,
   } = useCountries();
 
   const {
     data: dbStats,
-    isLoading: dbStatsLoading,
     error: dbStatsError,
     refetch: refetchDatabaseStats,
   } = useDatabaseStats();
 
   const {
     data: mlHealth,
-    isLoading: mlHealthLoading,
     error: mlHealthError,
     refetch: refetchMlHealth,
   } = useMlHealth();
@@ -153,10 +149,6 @@ const Dashboard = () => {
   // Check if any critical data is loading
   const isInitialLoading = statisticsLoading && !statistics;
 
-  // Combined loading state for UI elements
-  const isAnyLoading =
-    statisticsLoading || countriesLoading || dbStatsLoading || mlHealthLoading;
-
   // Combine all errors
   const hasError =
     statisticsError || countriesError || dbStatsError || mlHealthError;
@@ -197,20 +189,6 @@ const Dashboard = () => {
               </option>
             ))}
           </select>
-
-          {/* Refresh Button */}
-          <button
-            onClick={loadDashboardData}
-            disabled={isAnyLoading}
-            className="btn-secondary flex items-center space-x-2"
-          >
-            <RefreshCw
-              className={`w-4 h-4 text-red-600 ${
-                isAnyLoading ? "animate-spin" : ""
-              }`}
-            />
-            <span>Làm mới</span>
-          </button>
         </div>
       </div>
 
@@ -375,8 +353,8 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-            <TrendingUp className="w-8 h-8 text-green-600 mx-auto mb-3" />
+          <div className="text-center p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
+            <TrendingUp className="w-8 h-8 text-red-600 mx-auto mb-3" />
             <h4 className="text-lg font-semibold text-gray-900">
               Days Regressor
             </h4>
@@ -413,8 +391,8 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-            <HardDrive className="w-8 h-8 text-purple-600 mx-auto mb-3" />
+          <div className="text-center p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
+            <HardDrive className="w-8 h-8 text-red-600 mx-auto mb-3" />
             <h4 className="text-lg font-semibold text-gray-900">
               Content Clusterer
             </h4>
