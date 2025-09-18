@@ -24,12 +24,16 @@ class ModelLoader:
         self.models = {}
         self.is_trained = False
         self.metrics = {}
-        self.cluster_names = {}
+        # Unified fixed mapping for cluster names
+        self.cluster_names = {
+            "0": "Nhóm Viral mạnh",
+            "1": "Nhóm Buzz ngắn hạn",
+            "2": "Nhóm Tương tác niche",
+        }
 
         if self.spark:
             self.load_models_from_hdfs()
             self.load_metrics()
-            self._load_cluster_names()
 
     def load_models_from_hdfs(self) -> bool:
         """Load trained models from HDFS"""
@@ -79,38 +83,11 @@ class ModelLoader:
         except Exception as e:
             self.metrics = {}
 
-    def _load_cluster_names(self):
-        """Load dynamic cluster names from JSON file"""
-        try:
-            # Import path_config for proper path management
-            import sys
-            from pathlib import Path
-            project_root = Path(__file__).parent.parent.parent.parent
-            sys.path.insert(0, str(project_root))
-            from config.paths import path_config
-            
-            cluster_file = path_config.SPARK_ANALYSIS_DIR / "cluster_names.json"
-            if os.path.exists(cluster_file):
-                with open(cluster_file, 'r', encoding='utf-8') as f:
-                    self.cluster_names = json.load(f)
-            else:
-                self.cluster_names = self._get_fallback_cluster_names()
-        except Exception as e:
-            self.cluster_names = self._get_fallback_cluster_names()
-
-    def _get_fallback_cluster_names(self):
-        """Fallback cluster names if dynamic loading fails"""
-        return {
-            "0": "Nội dung Tác động Cao",
-            "1": "Nội dung Đại chúng",
-            "2": "Nội dung Tiềm năng",
-            "3": "Nội dung Ổn định"
-        }
-
+    # Removed legacy cluster name loaders; using unified fixed mapping
     def get_model(self, model_name: str):
         """Get a specific model"""
         return self.models.get(model_name)
 
     def get_cluster_name(self, cluster_id: int) -> str:
-        """Get cluster name by ID"""
+        """Get cluster name by ID with unified fixed mapping; fallback to generic label if out of range."""
         return self.cluster_names.get(str(cluster_id), f"Cluster {cluster_id}")
