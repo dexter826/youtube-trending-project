@@ -9,14 +9,10 @@ import ErrorMessage from "../components/ErrorMessage";
 import { useApi } from "../context/ApiContext";
 
 const PredictionPage = () => {
-  const { loading, error } = useApi();
+  const { error } = useApi();
   const { mlHealth } = useModelData();
-  const {
-    predictions,
-    predictionLoading,
-    handlePredictByUrl,
-  } = usePrediction();
-
+  const { predictions, predictionLoading, handlePredictByUrl } =
+    usePrediction();
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -40,8 +36,8 @@ const PredictionPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* URL-based Input Form */}
         <PredictionForm
-          onPredictByUrl={(url, apiKey) => handlePredictByUrl(url, apiKey)}
-          loading={loading}
+          onPredictByUrl={(url) => handlePredictByUrl(url)}
+          loading={predictionLoading.all}
           mlHealth={mlHealth}
         />
 
@@ -51,7 +47,6 @@ const PredictionPage = () => {
           predictionLoading={predictionLoading}
         />
       </div>
-
     </div>
   );
 };

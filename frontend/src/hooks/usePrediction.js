@@ -43,7 +43,7 @@ export const usePrediction = () => {
 
   // New: Predict by YouTube URL (returns both days + cluster)
   const handlePredictByUrl = async (url) => {
-    setPredictionLoading((prev) => ({ ...prev, all: true }));
+    setPredictionLoading((prev) => ({ ...prev, all: true, days: true, cluster: true }));
     setPredictions({ days: null, cluster: null });
     try {
       const data = await predictByUrl(url);
@@ -53,7 +53,7 @@ export const usePrediction = () => {
     } catch (e) {
       // handled by ApiContext
     } finally {
-      setPredictionLoading((prev) => ({ ...prev, all: false }));
+      setPredictionLoading((prev) => ({ ...prev, all: false, days: false, cluster: false }));
     }
   };
 

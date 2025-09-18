@@ -282,7 +282,7 @@ const Dashboard = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Loaded Models</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {mlHealth.total_models}/3
+                  {mlHealth.total_models}/2
                 </span>
               </div>
 

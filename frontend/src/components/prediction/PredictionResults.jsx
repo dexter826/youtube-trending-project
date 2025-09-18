@@ -17,7 +17,7 @@ const PredictionCard = ({
         <Icon className={`w-5 h-5 text-${color}-600`} />
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
       </div>
-      {result?.prediction && !loading && (
+      {result && !loading && (
         <div className="flex items-center space-x-1">
           <CheckCircle className="w-4 h-4 text-green-500" />
           <span className="text-xs text-green-600">Hoàn thành</span>
@@ -44,8 +44,8 @@ const PredictionCard = ({
                 </tr>
               </thead>
               <tbody>
-                {/* Sử dụng result.prediction thay vì result trực tiếp */}
-                {result.prediction?.predicted_days !== undefined && (
+                {/* Sử dụng result thay vì result.prediction */}
+                {result?.predicted_days !== undefined && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Số ngày dự kiến nằm trong Trending
@@ -53,12 +53,12 @@ const PredictionCard = ({
                     <td
                       className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
                     >
-                      {result.prediction.predicted_days}
+                      {result.predicted_days}
                     </td>
                   </tr>
                 )}
 
-                {result.prediction?.cluster !== undefined && (
+                {result?.cluster !== undefined && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Cluster
@@ -66,55 +66,53 @@ const PredictionCard = ({
                     <td
                       className={`border border-gray-300 px-4 py-2 text-sm font-bold text-${color}-600`}
                     >
-                      {result.prediction.cluster}
+                      {result.cluster}
                     </td>
                   </tr>
                 )}
-                {result.prediction?.cluster_type && (
+                {result?.cluster_type && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Loại nội dung
                     </td>
-                    <td
-                      className={`border border-gray-300 px-4 py-2 text-sm`}
-                    >
+                    <td className={`border border-gray-300 px-4 py-2 text-sm`}>
                       <span
                         className={`px-2 py-1 bg-${color}-100 text-${color}-700 text-sm rounded-full`}
                       >
-                        {result.prediction.cluster_type}
+                        {result.cluster_type}
                       </span>
                     </td>
                   </tr>
                 )}
-                {result.prediction?.confidence && (
+                {result?.confidence && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Độ tin cậy
                     </td>
                     <td
                       className={`border border-gray-300 px-4 py-2 text-sm font-medium ${
-                        result.prediction.confidence === "high"
+                        result.confidence === "high"
                           ? "text-green-600"
-                          : result.prediction.confidence === "medium"
+                          : result.confidence === "medium"
                           ? "text-yellow-600"
                           : "text-red-600"
                       }`}
                     >
-                      {result.prediction.confidence === "high"
+                      {result.confidence === "high"
                         ? "Cao"
-                        : result.prediction.confidence === "medium"
+                        : result.confidence === "medium"
                         ? "Trung bình"
                         : "Thấp"}
                     </td>
                   </tr>
                 )}
-                {result.prediction?.method && (
+                {result?.method && (
                   <tr>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                       Phương pháp
                     </td>
                     <td className="border border-gray-300 px-4 py-2 text-sm text-gray-500">
-                      {result.prediction.method}
+                      {result.method}
                     </td>
                   </tr>
                 )}
