@@ -19,8 +19,8 @@ class Predictor:
         try:
             model = self.model_loader.models.get("days_regressor")
             if model is not None:
-                # Reuse regression features; trained pipeline should match training stage.
-                input_df = self.feature_processor.create_regression_dataframe(video_data)
+                # Build features for days-in-trending regression (aligned with training pipeline)
+                input_df = self.feature_processor.create_days_regression_dataframe(video_data)
                 predictions = model.transform(input_df)
                 result = predictions.select("prediction").collect()[0]
                 predicted_days = max(0.0, float(result["prediction"]))

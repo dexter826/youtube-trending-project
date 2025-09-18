@@ -1,5 +1,5 @@
 """
-Data Preparation Module for ML Training
+Data Preparation Module for ML Training (Clustering + Days Regression)
 """
 
 import pandas as pd
@@ -37,25 +37,7 @@ class DataPreparation:
         pandas_df = pd.DataFrame(cleaned_data)
         return pandas_df
 
-    def prepare_features_for_trending_prediction(self, df):
-        """Prepare features for trending prediction model"""
-        # Add log transformation for views
-        df = df.withColumn("log_views", log(col("views") + 1))
-
-        # Ensure required columns exist
-        if "publish_hour" not in df.columns:
-            df = df.withColumn("publish_hour", lit(12))  # Default to noon
-        if "video_age_proxy" not in df.columns:
-            df = df.withColumn("video_age_proxy",
-                              when(col("engagement_score") > 0.1, 1).otherwise(2))
-
-        feature_cols = [
-            "log_views", "like_ratio", "dislike_ratio", "comment_ratio", "engagement_score",
-            "title_length", "has_caps", "tag_count", "category_id", "publish_hour", "video_age_proxy"
-        ]
-
-        data = df.select(feature_cols + ["is_trending"]).na.fill(0)
-        return data, feature_cols
+    # Removed legacy trending classification preparation
 
     def prepare_features_for_clustering(self, df):
         """Prepare features for clustering model"""
@@ -81,23 +63,7 @@ class DataPreparation:
         data = df.select(cluster_features).na.fill(0)
         return data, cluster_features
 
-    def prepare_features_for_regression(self, df):
-        """Prepare features for regression model"""
-        # Ensure required columns exist
-        if "publish_hour" not in df.columns:
-            df = df.withColumn("publish_hour", lit(12))
-        if "video_age_proxy" not in df.columns:
-            df = df.withColumn("video_age_proxy",
-                              when(col("engagement_score") > 0.1, 1).otherwise(2))
-
-        feature_cols = [
-            "views", "likes", "dislikes", "comment_count", "like_ratio",
-            "engagement_score", "title_length", "tag_count", "category_id",
-            "publish_hour", "video_age_proxy"
-        ]
-
-        data = df.select(feature_cols + ["log_views"]).na.fill(0)
-        return data, feature_cols
+    # Removed legacy views regression preparation
 
     def prepare_features_for_days_regression(self, df):
         """Prepare features for days-in-trending regression.

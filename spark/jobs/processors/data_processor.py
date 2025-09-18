@@ -149,17 +149,7 @@ class DataProcessor:
 
         # Content Features
         df = df.withColumn("title_length", length(col("title")))
-        df = df.withColumn("has_caps", when(col("title").rlike("[A-Z]{3,}"), 1).otherwise(0))
         df = df.withColumn("tag_count", when(col("tags").isNotNull(), size(split(col("tags"), "\\|"))).otherwise(0))
-
-        # Trending Target Variable
-        window_spec = Window.partitionBy("country", "trending_date_parsed").orderBy(col("views").desc())
-        df = df.withColumn("view_rank", row_number().over(window_spec))
-
-        total_videos = df.groupBy("country", "trending_date_parsed").agg(count("*").alias("total_videos_per_day"))
-        df = df.join(total_videos, ["country", "trending_date_parsed"], "left")
-        df = df.withColumn("trending_threshold", greatest(lit(1), least(lit(20), (col("total_videos_per_day") * 0.2).cast("int"))))
-        df = df.withColumn("is_trending", when(col("view_rank") <= col("trending_threshold"), 1).otherwise(0))
 
         # Views prediction target
         df = df.withColumn("log_views", log(col("views") + 1))
@@ -169,9 +159,9 @@ class DataProcessor:
             "video_id", "country", "trending_date_parsed",
             "views", "likes", "dislikes", "comment_count", "category_id",
             "like_ratio", "dislike_ratio", "comment_ratio", "engagement_score",
-            "title_length", "has_caps", "tag_count",
+            "title_length", "tag_count",
             "publish_hour", "publish_day_of_week", "video_age_days", "video_age_proxy",
-            "is_trending", "log_views"
+            "log_views"
         ]
 
         ml_df = df.select(feature_cols)
@@ -193,16 +183,15 @@ class DataProcessor:
                 "comment_ratio": float(row["comment_ratio"]) if pd.notnull(row["comment_ratio"]) else 0.0,
                 "engagement_score": float(row["engagement_score"]) if pd.notnull(row["engagement_score"]) else 0.0,
                 "title_length": int(row["title_length"]) if pd.notnull(row["title_length"]) else 0,
-                "has_caps": int(row["has_caps"]) if pd.notnull(row["has_caps"]) else 0,
                 "tag_count": int(row["tag_count"]) if pd.notnull(row["tag_count"]) else 0,
                 "publish_hour": int(row["publish_hour"]) if pd.notnull(row["publish_hour"]) else 12,
                 "publish_day_of_week": int(row["publish_day_of_week"]) if pd.notnull(row["publish_day_of_week"]) else 1,
                 "video_age_days": int(row["video_age_days"]) if pd.notnull(row["video_age_days"]) else 7,
                 "video_age_proxy": int(row["video_age_proxy"]) if pd.notnull(row["video_age_proxy"]) else 2,
-                "is_trending": int(row["is_trending"]) if pd.notnull(row["is_trending"]) else 0,
                 "log_views": float(row["log_views"]) if pd.notnull(row["log_views"]) else 0.0,
                 "processed_at": datetime.now().isoformat()
             }
+
             ml_features.append(record)
 
         return ml_features

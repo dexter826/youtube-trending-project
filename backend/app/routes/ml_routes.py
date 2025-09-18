@@ -29,7 +29,7 @@ class VideoMLInput(BaseModel):
 
 class UrlInput(BaseModel):
     url: str
-    api_key: str
+    api_key: str | None = None
 
 @router.get("/health")
 async def health_check():

@@ -104,14 +104,12 @@ class ClusterAnalyzer:
                 StructField("like_ratio", DoubleType(), True),
                 StructField("engagement_score", DoubleType(), True),
                 StructField("title_length", DoubleType(), True),
-                StructField("has_caps", DoubleType(), True),
                 StructField("tag_count", DoubleType(), True),
                 StructField("category_id", DoubleType(), True),
                 StructField("publish_hour", DoubleType(), True),
                 StructField("video_age_proxy", DoubleType(), True),
                 StructField("title", StringType(), True),
-                StructField("tags", StringType(), True),
-                StructField("is_trending", DoubleType(), True)
+                StructField("tags", StringType(), True)
             ])
 
             # Clean and prepare data
@@ -123,15 +121,13 @@ class ClusterAnalyzer:
                 cleaned_record = {}
                 for key, value in record.items():
                     if value is None:
-                        if key in ['views', 'likes', 'dislikes', 'comment_count', 'category_id', 'publish_hour', 'video_age_proxy']:
-                            cleaned_record[key] = 0.0
-                        elif key in ['like_ratio', 'engagement_score', 'title_length', 'has_caps', 'tag_count', 'is_trending']:
+                        if key in ['views', 'likes', 'dislikes', 'comment_count', 'category_id', 'publish_hour', 'video_age_proxy', 'like_ratio', 'engagement_score', 'title_length', 'tag_count']:
                             cleaned_record[key] = 0.0
                         else:
                             cleaned_record[key] = ""
                     else:
                         # Ensure numeric types
-                        if key in ['views', 'likes', 'dislikes', 'comment_count', 'category_id', 'publish_hour', 'video_age_proxy', 'like_ratio', 'engagement_score', 'title_length', 'has_caps', 'tag_count', 'is_trending']:
+                        if key in ['views', 'likes', 'dislikes', 'comment_count', 'category_id', 'publish_hour', 'video_age_proxy', 'like_ratio', 'engagement_score', 'title_length', 'tag_count']:
                             try:
                                 cleaned_record[key] = float(value)
                             except (ValueError, TypeError):
@@ -164,34 +160,11 @@ class ClusterAnalyzer:
         """Analyze cluster centroids and assign dynamic names"""
         try:
             logger.info("Starting cluster analysis")
-            
-            # DEBUG: Print schema and sample data
-            logger.info("Input DataFrame schema:")
-            df.printSchema()
-            logger.info("Sample data:")
-            df.show(5, truncate=False)
-            
-            # Get predictions
-            predictions = model.transform(df)
-            predictions.cache()
 
-            # DEBUG: Print predictions schema
-            logger.info("Predictions DataFrame schema:")
-            predictions.printSchema()
-            logger.info("Predictions sample:")
-            predictions.select("cluster").show(5)
-
-            # DEBUG: Skip filtering for now to isolate the issue
-            logger.info("Skipping filtering to test aggregation")
-            # predictions = predictions.filter(...)
-            
-            filtered_count = predictions.count()
-            logger.info(f"Total records: {filtered_count}")
-            
-            # Force smaller sample for testing
-            logger.info("Forcing small sample for testing")
-            predictions = predictions.limit(1000)  # Only 1000 records
-            logger.info(f"Limited to {predictions.count()} records")
+            # Transform and cache predictions
+            predictions = model.transform(df).cache()
+            total_records = predictions.count()
+            logger.info(f"Total records for analysis: {total_records}")
 
             # Calculate cluster statistics
             cluster_stats = predictions.groupBy("cluster").agg(
@@ -240,7 +213,10 @@ class ClusterAnalyzer:
             logger.error(f"Cluster analysis failed: {e}")
             raise
         finally:
-            predictions.unpersist()
+            try:
+                predictions.unpersist()
+            except Exception:
+                pass
 
     def _assign_cluster_name(self, stats: Dict[str, float], dominant_category: str) -> str:
         """
