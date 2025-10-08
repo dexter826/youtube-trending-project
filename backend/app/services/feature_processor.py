@@ -5,43 +5,12 @@ Feature Processing Service
 from typing import Dict, Any
 from fastapi import HTTPException
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
-from pyspark.ml.feature import Tokenizer, StopWordsRemover, HashingTF, IDF
-from pyspark.ml import Pipeline
 import math
 
 
 class FeatureProcessor:
     def __init__(self, spark_session):
         self.spark = spark_session
-        self.nlp_pipeline = None
-        self._init_nlp_pipeline()
-
-    def _init_nlp_pipeline(self):
-        """Initialize NLP pipeline for text processing"""
-        try:
-            title_tokenizer = Tokenizer(inputCol="title", outputCol="title_words")
-            title_remover = StopWordsRemover(inputCol="title_words", outputCol="title_filtered")
-            title_hashingTF = HashingTF(inputCol="title_filtered", outputCol="title_raw_features", numFeatures=1000)
-            title_idf = IDF(inputCol="title_raw_features", outputCol="title_tfidf")
-
-            desc_tokenizer = Tokenizer(inputCol="description", outputCol="desc_words")
-            desc_remover = StopWordsRemover(inputCol="desc_words", outputCol="desc_filtered")
-            desc_hashingTF = HashingTF(inputCol="desc_filtered", outputCol="desc_raw_features", numFeatures=2000)
-            desc_idf = IDF(inputCol="desc_raw_features", outputCol="desc_tfidf")
-
-            self.nlp_pipeline = Pipeline(stages=[
-                title_tokenizer, title_remover, title_hashingTF, title_idf,
-                desc_tokenizer, desc_remover, desc_hashingTF, desc_idf
-            ])
-        except Exception:
-            # If NLP fails, set to None
-            self.nlp_pipeline = None
-
-    def _add_nlp_features(self, df):
-        """Add NLP features if pipeline is available"""
-        # df = df.withColumn("title_tfidf", [0.0] * df.count()) \
-        #        .withColumn("desc_tfidf", [0.0] * df.count())
-        return df
 
     def create_days_regression_dataframe(self, video_data: Dict[str, Any]):
         """Create DataFrame for days-in-trending regression model"""
@@ -87,7 +56,6 @@ class FeatureProcessor:
             ])
 
             df = self.spark.createDataFrame([tuple(features.values())], schema)
-            # df = self._add_nlp_features(df)  # Disabled to match trained model
 
             return df
 
@@ -142,7 +110,6 @@ class FeatureProcessor:
             ])
 
             df = self.spark.createDataFrame([tuple(features.values())], schema)
-            # df = self._add_nlp_features(df)  # Disabled to match trained model
 
             return df
 

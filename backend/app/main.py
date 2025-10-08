@@ -28,7 +28,6 @@ from backend.app.ml_service import get_ml_service, initialize_ml_service
 from backend.app.routes.ml_routes import router as ml_router
 from backend.app.routes.trending_routes import router as trending_router
 from backend.app.services.health_service import health_service
-from backend.app.utils.response_utils import JSONEncoder
 
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")

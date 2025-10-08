@@ -238,9 +238,14 @@ class ProjectRunner:
 
         # Check backend
         api_port = os.getenv("API_PORT", "8000")
-        if self.run_command(f"curl -s http://localhost:{api_port}/docs >nul 2>&1", "Checking backend API", check=False):
-            print(f"Backend API: Running (http://localhost:{api_port})")
-        else:
+        try:
+            import requests
+            response = requests.get(f"http://localhost:{api_port}/health", timeout=2)
+            if response.status_code == 200:
+                print(f"Backend API: Running (http://localhost:{api_port})")
+            else:
+                print(f"Backend API: Not running (status: {response.status_code})")
+        except:
             print(f"Backend API: Not running")
 
         # Check frontend
