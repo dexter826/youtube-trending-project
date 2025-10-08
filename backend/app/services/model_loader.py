@@ -24,7 +24,7 @@ class ModelLoader:
         self.models = {}
         self.is_trained = False
         self.metrics = {}
-        # Unified fixed mapping for cluster names
+        # Unified mapping for cluster names
         self.cluster_names = {
             "0": "Nhóm Viral mạnh",
             "1": "Nhóm Buzz ngắn hạn",

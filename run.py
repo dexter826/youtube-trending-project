@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 YouTube Trending Project Runner
 Start backend, frontend, infrastructure, and data pipeline
@@ -26,7 +25,7 @@ class ProjectRunner:
     def run_command(self, cmd, description="", cwd=None, check=True):
         """Run shell command with proper error handling"""
         try:
-            print(f"🔄 {description}")
+            print(f"Running: {description}")
             result = subprocess.run(
                 cmd,
                 shell=True,
@@ -36,7 +35,7 @@ class ProjectRunner:
             )
 
             if check and result.returncode != 0:
-                print(f"❌ Failed: {description}")
+                print(f"Failed: {description}")
                 if result.stderr:
                     print(f"Error: {result.stderr}")
                 if result.stdout:
@@ -44,23 +43,23 @@ class ProjectRunner:
                 return False
 
             if result.stdout and not result.stdout.startswith("WARNING"):
-                print(f"✅ {description}")
+                print(f"Success: {description}")
             return True
 
         except Exception as e:
-            print(f"❌ Error running command: {e}")
+            print(f"Error running command: {e}")
             return False
 
     def start_infrastructure(self):
         """Start infrastructure services (HDFS, MongoDB)"""
-        print("🏗️  Starting infrastructure services...")
+        print("Starting infrastructure services...")
 
         # Start HDFS
         hadoop_home = os.getenv("HADOOP_HOME", "C:\\hadoop-3.4.1")
         hdfs_cmd = f"{hadoop_home}\\sbin\\start-all.cmd"
 
         if not self.run_command(hdfs_cmd, "Starting HDFS services"):
-            print("⚠️  HDFS start failed - check HADOOP_HOME environment variable")
+            print("Warning: HDFS start failed - check HADOOP_HOME environment variable")
             return False
 
         # Start MongoDB
@@ -68,7 +67,7 @@ class ProjectRunner:
         mongo_cmd = f'start "MongoDB" cmd /k "mongod --dbpath {mongo_data_path}"'
 
         if not self.run_command(mongo_cmd, "Starting MongoDB"):
-            print("⚠️  MongoDB start failed - check MONGO_DATA_PATH environment variable")
+            print("Warning: MongoDB start failed - check MONGO_DATA_PATH environment variable")
             return False
 
         # Wait for services to start
@@ -78,7 +77,7 @@ class ProjectRunner:
 
     def run_pipeline(self):
         """Run the complete data processing pipeline"""
-        print("🔄 Running data processing pipeline...")
+        print("Running data processing pipeline...")
 
         # Create HDFS directories
         directories = [
@@ -136,12 +135,12 @@ class ProjectRunner:
         ):
             return False
 
-        print("✅ Pipeline completed successfully!")
+        print("Pipeline completed successfully!")
         return True
 
     def start_app(self):
         """Start backend and frontend services"""
-        print("🌐 Starting application services...")
+        print("Starting application services...")
 
         # Start backend API in background
         backend_dir = str(path_config.BACKEND_DIR)
@@ -150,7 +149,7 @@ class ProjectRunner:
         backend_cmd = f"cd {backend_dir} && python -m uvicorn app.main:app --reload --host {api_host} --port {api_port}"
 
         try:
-            print("🔄 Starting backend API...")
+            print("Starting backend API...")
             backend_process = subprocess.Popen(
                 backend_cmd, 
                 shell=True, 
@@ -160,13 +159,13 @@ class ProjectRunner:
             
             # Wait for backend to be ready
             if not self._wait_for_backend_ready(api_port, timeout=30):
-                print("❌ Backend failed to become ready within timeout")
+                print("Backend failed to become ready within timeout")
                 return False
                 
-            print(f"✅ Backend API ready on http://{api_host}:{api_port}")
+            print(f"Backend API ready on http://{api_host}:{api_port}")
                 
         except Exception as e:
-            print(f"❌ Failed to start backend: {e}")
+            print(f"Failed to start backend: {e}")
             return False
 
         # Start frontend only after backend is confirmed ready
@@ -175,7 +174,7 @@ class ProjectRunner:
         frontend_cmd = f"cd {frontend_dir} && npm start"
 
         try:
-            print("🔄 Starting frontend...")
+            print("Starting frontend...")
             frontend_process = subprocess.Popen(
                 frontend_cmd, 
                 shell=True, 
@@ -186,15 +185,15 @@ class ProjectRunner:
             
             # Give frontend time to start
             time.sleep(5)
-            print(f"✅ Frontend started on http://localhost:{frontend_port}")
+            print(f"Frontend started on http://localhost:{frontend_port}")
                 
         except Exception as e:
-            print(f"❌ Failed to start frontend: {e}")
+            print(f"Failed to start frontend: {e}")
             return False
 
-        print("\n🎉 Services started successfully!")
-        print("💡 Services are running in background. Use 'python run.py status' to check status.")
-        print("💡 Press Ctrl+C in their respective terminals to stop services.")
+        print("\nServices started successfully!")
+        print("Info: Services are running in background. Use 'python run.py status' to check status.")
+        print("Info: Press Ctrl+C in their respective terminals to stop services.")
         
         return True
 
@@ -219,13 +218,13 @@ class ProjectRunner:
 
     def show_status(self):
         """Show current status of services"""
-        print("📊 Service Status:")
+        print("Service Status:")
 
         # Check HDFS
         if self.run_command("hdfs dfs -ls /", "Checking HDFS", check=False):
-            print("✅ HDFS: Running")
+            print("HDFS: Running")
         else:
-            print("❌ HDFS: Not running")
+            print("HDFS: Not running")
 
         # Check MongoDB
         try:
@@ -233,16 +232,16 @@ class ProjectRunner:
             mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
             client = pymongo.MongoClient(mongo_uri, serverSelectionTimeoutMS=1000)
             client.admin.command('ping')
-            print("✅ MongoDB: Running")
+            print("MongoDB: Running")
         except:
-            print("❌ MongoDB: Not running")
+            print("MongoDB: Not running")
 
         # Check backend
         api_port = os.getenv("API_PORT", "8000")
         if self.run_command(f"curl -s http://localhost:{api_port}/docs >nul 2>&1", "Checking backend API", check=False):
-            print(f"✅ Backend API: Running (http://localhost:{api_port})")
+            print(f"Backend API: Running (http://localhost:{api_port})")
         else:
-            print(f"❌ Backend API: Not running")
+            print(f"Backend API: Not running")
 
         # Check frontend
         frontend_port = os.getenv("FRONTEND_PORT", "3000")
@@ -251,9 +250,9 @@ class ProjectRunner:
         result = sock.connect_ex(('localhost', int(frontend_port)))
         sock.close()
         if result == 0:
-            print(f"✅ Frontend: Running (http://localhost:{frontend_port})")
+            print(f"Frontend: Running (http://localhost:{frontend_port})")
         else:
-            print(f"❌ Frontend: Not running")
+            print(f"Frontend: Not running")
 
 
 def main():
@@ -302,16 +301,16 @@ Examples:
 
     if args.mode != 'status':
         if success:
-            print("\n🎉 Success!")
+            print("\nSuccess!")
             if args.mode in ['app', 'all']:
                 api_port = os.getenv("API_PORT", "8000")
                 frontend_port = os.getenv("FRONTEND_PORT", "3000")
-                print(f"🌐 Frontend: http://localhost:{frontend_port}")
-                print(f"🔌 Backend API: http://localhost:{api_port}")
-                print(f"📊 API Docs: http://localhost:{api_port}/docs")
-                print("🗂️  HDFS: http://localhost:9870")
+                print(f"Frontend: http://localhost:{frontend_port}")
+                print(f"Backend API: http://localhost:{api_port}")
+                print(f"API Docs: http://localhost:{api_port}/docs")
+                print("HDFS: http://localhost:9870")
         else:
-            print("\n❌ Command failed!")
+            print("\nCommand failed!")
             sys.exit(1)
 
 

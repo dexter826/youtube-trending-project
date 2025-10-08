@@ -1,5 +1,5 @@
 """
-YouTube Trending Data Processing - Refactored
+YouTube Trending Data Processing
 """
 
 import os
@@ -65,7 +65,7 @@ class YouTubeTrendingProcessor:
 
         # Check data quality
         quality_report = self.data_validator.check_data_quality(df)
-        print(f"Data quality report: {quality_report}")
+        print(f"Quality report: {quality_report}")
 
         # Clean data
         df_clean = self.data_validator.clean_data(df)
@@ -74,54 +74,54 @@ class YouTubeTrendingProcessor:
     def run_full_pipeline(self, data_path=None):
         """Run the complete data processing pipeline"""
         try:
-            print("[START] Starting YouTube Trending Data Processing Pipeline...")
+            print("Starting YouTube Trending Data Processing Pipeline")
             start_time = time.time()
 
             # Step 1: Load data from HDFS only
-            print("\n[STEP 1/4] Loading data from HDFS...")
+            print("Step 1/4: Loading data from HDFS")
             step_start = time.time()
             df = self.load_csv_data_from_hdfs()
 
             if df is None:
-                print("[ERROR] Failed to load data from HDFS")
+                print("Failed to load data from HDFS")
                 return False
 
-            print(f"   [INFO] Loaded {df.count()} records from {len(self.data_loader.countries)} countries")
+            print(f"Loaded {df.count()} records from {len(self.data_loader.countries)} countries")
 
             # Step 2: Validate and clean data
-            print("\n[STEP 2/4] Validating and cleaning data...")
+            print("Step 2/4: Validating and cleaning data")
             step_start = time.time()
             df = self.validate_and_clean_data(df)
-            print("   [SUCCESS] Data validation and cleaning completed")
+            print("Data validation and cleaning completed")
 
             # Step 3: Process and save data
-            print("\n[STEP 3/4] Processing trending analysis...")
+            print("Step 3/4: Processing trending analysis")
             step_start = time.time()
             self.save_raw_data_to_mongodb(df)
             ml_features_count = self.create_ml_features(df)
             trending_results = self.process_trending_analysis(df)
             wordcloud_results = self.generate_wordcloud_data(df)
-            print(f"   [INFO] Created {ml_features_count} ML features")
-            print(f"   [INFO] Generated {len(trending_results)} trending reports")
-            print(f"   [INFO] Generated {len(wordcloud_results)} wordcloud datasets")
+            print(f"Created {ml_features_count} ML features")
+            print(f"Generated {len(trending_results)} trending reports")
+            print(f"Generated {len(wordcloud_results)} wordcloud datasets")
 
             # Step 4: Summary
             total_time = time.time() - start_time
-            print("\n[SUCCESS] Step 4/4: Pipeline completed successfully!")
-            print(f"   [INFO] Total records processed: {df.count()}")
-            print(f"   [INFO] Countries processed: {len(self.data_loader.countries)}")
-            print(f"   [INFO] ML features created: {ml_features_count}")
+            print("Step 4/4: Pipeline completed successfully!")
+            print(f"Total records processed: {df.count()}")
+            print(f"Countries processed: {len(self.data_loader.countries)}")
+            print(f"ML features created: {ml_features_count}")
 
             return True
 
         except Exception as e:
-            print(f"\n[ERROR] Pipeline failed with error: {e}")
+            print(f"Pipeline failed with error: {e}")
             return False
         finally:
-            print("\n[CLEANUP] Cleaning up resources...")
+            print("Cleaning up resources")
             self.spark.stop()
             self.data_loader.mongo_client.close()
-            print("[SUCCESS] Resources cleaned up")
+            print("Resources cleaned up")
 
 def main():
     """Main execution function"""

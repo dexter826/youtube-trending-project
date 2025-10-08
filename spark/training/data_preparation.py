@@ -85,7 +85,7 @@ class DataPreparation:
 
         return df
 
-    # Removed legacy trending classification preparation
+    # Prepare features for clustering model
 
     def prepare_features_for_clustering(self, df):
         """Prepare features for clustering model"""
@@ -121,7 +121,7 @@ class DataPreparation:
         data = df.select(cluster_features).na.fill(0)
         return data, cluster_features
 
-    # Removed legacy views regression preparation
+    # Prepare features for days regression model
 
     def prepare_features_for_days_regression(self, df):
         """Prepare features for days-in-trending regression.

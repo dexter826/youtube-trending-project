@@ -40,7 +40,7 @@ class DataValidator:
         # Validate data types
         for col_name, expected_type in expected_schema.items():
             if df.schema[col_name].dataType != expected_type:
-                print(f"Warning: Column {col_name} has type {df.schema[col_name].dataType}, expected {expected_type}")
+                print(f"Column {col_name} has type {df.schema[col_name].dataType}, expected {expected_type}")
 
         return True
 

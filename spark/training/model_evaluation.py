@@ -12,7 +12,7 @@ class ModelEvaluation:
     def __init__(self, spark_session):
         self.spark = spark_session
 
-    # Removed trending classification evaluation (app focuses on clustering and days regression)
+    # Focus on clustering and days regression evaluation
 
     def evaluate_clustering_model(self, predictions, feature_cols):
         """Evaluate clustering model and return metrics"""
