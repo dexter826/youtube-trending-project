@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,6 +13,7 @@ import {
   ZAxis,
   Legend,
 } from "recharts";
+import ReactWordcloud from "react-wordcloud";
 import {
   Filter,
   Eye,
@@ -139,36 +138,136 @@ const TrendingAnalysis = () => {
     })
     .filter((item) => item.count > 0);
 
-  // Top Channels aggregation: count videos per channel and average engagement/views
-  const channelMap = videos.reduce((acc, v) => {
-    const ch = v.channel_title || "Unknown Channel";
-    const views = v.views || 0;
-    const likes = v.likes || 0;
-    const comments = v.comment_count || 0;
-    if (!acc[ch])
-      acc[ch] = { channel: ch, count: 0, viewsSum: 0, engSum: 0, engDen: 0 };
-    acc[ch].count += 1;
-    acc[ch].viewsSum += views;
-    if (views > 0) {
-      acc[ch].engSum += (likes + comments) / views;
-      acc[ch].engDen += 1;
-    }
+  // Word Cloud: Extract words from video titles
+  const stopWords = new Set([
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "from",
+    "up",
+    "about",
+    "into",
+    "through",
+    "during",
+    "before",
+    "after",
+    "above",
+    "below",
+    "between",
+    "under",
+    "again",
+    "further",
+    "then",
+    "once",
+    "here",
+    "there",
+    "when",
+    "where",
+    "why",
+    "how",
+    "all",
+    "both",
+    "each",
+    "few",
+    "more",
+    "most",
+    "other",
+    "some",
+    "such",
+    "no",
+    "nor",
+    "not",
+    "only",
+    "own",
+    "same",
+    "so",
+    "than",
+    "too",
+    "very",
+    "can",
+    "will",
+    "just",
+    "should",
+    "now",
+    "i",
+    "you",
+    "he",
+    "she",
+    "it",
+    "we",
+    "they",
+    "them",
+    "this",
+    "that",
+    "these",
+    "those",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "my",
+    "your",
+    "his",
+    "her",
+    "its",
+    "our",
+    "their",
+  ]);
+
+  const wordFrequency = videos.reduce((acc, v) => {
+    const title = v.title || "";
+    const words = title
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 2 && !stopWords.has(word));
+
+    words.forEach((word) => {
+      acc[word] = (acc[word] || 0) + 1;
+    });
     return acc;
   }, {});
 
-  let channelStats = Object.values(channelMap)
-    .map((c) => ({
-      channel: c.channel,
-      count: c.count,
-      avgViews: c.count > 0 ? c.viewsSum / c.count : 0,
-      avgEng: c.engDen > 0 ? c.engSum / c.engDen : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
+  const wordCloudData = Object.entries(wordFrequency)
+    .map(([text, value]) => ({ text, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 100); // Limit to top 100 words
 
-  channelStats = channelStats.slice(0, 12);
+  const wordCloudOptions = {
+    rotations: 2,
+    rotationAngles: [-90, 0],
+    fontSizes: [12, 60],
+    colors: ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"],
+    enableTooltip: true,
+    deterministic: true,
+    fontFamily: "Inter, system-ui, sans-serif",
+    fontWeight: "bold",
+    padding: 2,
+    scale: "sqrt",
+  };
 
-  // Fixed height to match prior chart sizing
-  const topChannelsHeight = 600;
+  // Fixed height for word cloud
+  const wordCloudHeight = 600;
 
   // Scatter data: Views vs Engagement (size by comments), limited to top 100 videos by views (as provided order)
   const scatterRaw = videos.slice(0, 100).map((v) => ({
@@ -524,62 +623,22 @@ const TrendingAnalysis = () => {
           )}
         </div>
 
-        {/* Top Channels by Trending Count */}
+        {/* Word Cloud from Video Titles */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
-            Kênh xuất hiện nhiều trong Trending
+            Word Cloud từ Tiêu đề Video
           </h3>
           <p className="text-sm text-gray-500 mb-4">
-            Hiển thị số video trending theo kênh. Tooltip có Engagement TB và
-            Views TB.
+            Các từ xuất hiện nhiều nhất trong tiêu đề video trending. Kích thước
+            từ tương ứng với tần suất xuất hiện.
           </p>
-          {channelStats.length > 0 ? (
-            <ResponsiveContainer width="100%" height={topChannelsHeight}>
-              <BarChart
-                data={channelStats}
-                layout="horizontal"
-                margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={formatNumber} />
-                <YAxis
-                  dataKey="channel"
-                  type="category"
-                  width={180}
-                  interval={0}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const d = payload[0].payload;
-                      return (
-                        <div className="p-3 bg-white rounded-md shadow text-sm">
-                          <div className="font-semibold mb-1">{d.channel}</div>
-                          <div>
-                            Số video:{" "}
-                            <span className="font-medium">{d.count}</span>
-                          </div>
-                          <div>
-                            Views TB:{" "}
-                            <span className="font-medium">
-                              {formatNumber(Math.round(d.avgViews))}
-                            </span>
-                          </div>
-                          <div>
-                            Engagement TB:{" "}
-                            <span className="font-medium">
-                              {formatPercent(d.avgEng)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 4, 4]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {wordCloudData.length > 0 ? (
+            <div style={{ height: wordCloudHeight }}>
+              <ReactWordcloud
+                words={wordCloudData}
+                options={wordCloudOptions}
+              />
+            </div>
           ) : (
             <div className="flex items-center justify-center h-64 text-gray-500">
               Không có dữ liệu
