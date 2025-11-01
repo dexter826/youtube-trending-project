@@ -4,6 +4,15 @@
 
 Phân tích video xu hướng YouTube sử dụng Apache Spark, HDFS và Học Máy với giao diện người dùng React.
 
+## Dataset
+
+Bộ dữ liệu được sử dụng trong dự án này là "YouTube Trending Video Dataset" từ Kaggle. Bộ dữ liệu này chứa dữ liệu về các video thịnh hành hàng ngày từ nhiều quốc gia khác nhau.
+
+- **Nguồn:** [Kaggle - Trending YouTube Video Statistics](https://www.kaggle.com/datasets/datasnaek/youtube-new)
+- **Nội dung:** Chứa các tệp CSV cho 10 quốc gia khác nhau, cùng với các tệp JSON để ánh xạ ID danh mục.
+
+Để sử dụng dự án, bạn cần tải xuống bộ dữ liệu này và đặt các tệp CSV và JSON vào thư mục `data/`.
+
 ## Kiến Trúc
 
 ```
@@ -140,18 +149,11 @@ MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "youtube_trending"
 ```
 
-## Hiệu Suất
-
-- **Khối Lượng Dữ Liệu**: 375K+ bản ghi
-- **Xử Lý**: ~10K bản ghi/giây
-- **Phản Hồi API**: < 200ms trung bình
-- **Người Dùng Đồng Thời**: Hỗ trợ 100+ người
-
 ## Nhà Phát Triển
 
 Trần Công Minh - MSSV: 2001222641
 
 ### Thay Đổi Cấu Trúc Tệp
 
-- ✅ **setup.py**: Thiết lập môi trường một lần nhấp
-- ✅ **run.py**: Trình chạy linh hoạt cho các chế độ khác nhau
+- **setup.py**: Thiết lập môi trường một lần nhấp
+- **run.py**: Trình chạy linh hoạt cho các chế độ khác nhau
